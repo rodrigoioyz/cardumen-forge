@@ -6,6 +6,24 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 
 ---
 
+> **Context for newcomers:** [Aiken](https://aiken-lang.org) is a functional language for writing Cardano smart contracts. Fine-tuning means taking a general-purpose code model and training it further on domain-specific examples so it specializes. This project does that for Aiken v3 — the result is a small model (~2.5 GB) you can run locally that generates correct Cardano validators instead of hallucinating Haskell or outdated Plutus patterns.
+
+---
+
+## Motivation
+
+There is a recurring idea in this project that goes beyond the technical: the democratization of knowledge as a path to building societies with more opportunities.
+
+Cardano is a network designed around principles of access and inclusion. Aiken, as its smart contract language, is capable and precise — but the barrier to entry remains high. Traditionally, writing verifiable on-chain logic has required a combination of functional programming expertise, deep familiarity with the eUTxO model, and manual consultation of documentation that general-purpose models simply do not know well enough to be useful.
+
+The rapid advancement of LLMs across technical fields opens a different possibility. Research has shown that even a simple prompting strategy — giving a model an existing codebase as context and asking it to improve — can produce meaningful gains across a wide range of algorithms, without requiring the user to be a domain expert [[1]](#references). The underlying insight is that the model acts not as a replacement for expertise, but as a bridge to it.
+
+This project applies that idea to Cardano development. In the spirit of the old Ratatouille principle — that anyone can cook — the ambition here is that anyone can write a smart contract. Not to replace engineers and auditors, who remain essential for production security, but to lower the threshold at which someone can learn, experiment, and build. A self-taught developer with no formal training in formal verification should be able to get a working first draft, understand why it works, and know what questions to ask next.
+
+The approach is deliberately humble: one person, working iteratively with AI tools, building a grounded dataset from real documentation, and measuring improvement one failure mode at a time.
+
+---
+
 ## Why this exists
 
 The best open-source code models (Qwen2.5-Coder, DeepSeek-Coder, etc.) fail at Aiken in predictable ways:
@@ -169,6 +187,56 @@ pip install openai
 python3 eval_model.py
 # Compare two runs:
 python3 eval_model.py --compare
+```
+
+---
+
+## Pipeline overview
+
+```
+data/raw/                          ← scraped from official repos (not synthetic)
+   aiken_stdlib.json  458 functions with real signatures
+   aiken_docs.json    28 documentation pages
+   aiken_design_patterns.json  22 production pattern files
+   cips.json          134 Cardano Improvement Proposals
+   hydra_docs.json    35 Hydra protocol pages
+        │
+        ▼
+[Claude API — grounded generation]
+   inject real signatures as context → model cannot hallucinate APIs it wasn't shown
+        │
+        ▼
+data/processed/raw outputs
+        │
+        ▼
+[audit_v9.py + audit_dot_imports.py]
+   check API coverage, contamination, import style
+        │
+        ├── contaminated → purge_dot_imports.py → dataset_v13_purged.jsonl
+        ├── incomplete   → fix_incomplete_validators.py → validators_fixed.jsonl
+        └── gaps covered → generate_validators_v2.py → validators_v3.jsonl (479)
+                         → generate_corrections_v2.py → corrections_v2.jsonl (50)
+        │
+        ▼
+[build_dataset_v14.py]  curriculum-ordered merge
+   CORRECTION → VERIFIED → new curated → PLAUSIBLE
+        │
+        ▼
+dataset_v14_train.jsonl  3,737 examples
+        │
+        ▼
+[build_holdout.py]  stratified 90/10 split by review_status
+        ├── dataset_v14_train_split.jsonl  3,363  ← USE FOR TRAINING
+        └── dataset_v14_eval.jsonl           374  ← USE FOR EVAL
+        │
+        ▼
+[Colab QLoRA — unsloth + Qwen3.5-4B]
+        │
+        ▼
+qwen35_4b_aiken_v14_gguf/  Q4_K_M ~2.5 GB
+        │
+        ▼
+[eval_model.py — 15 prompts, automated pass/fail]
 ```
 
 ---
@@ -523,6 +591,8 @@ Run with `eval_model.py` (requires LM Studio + openai package).
 | 14 | `import_style` | imports | `use cardano/`, `use aiken/`, `spend(` | `use cardano.`, `use aiken.` |
 | 15 | `typed_datum` | spend / typed datum | `spend(`, `VestingDatum`, `validity_range` | `self.time`, `self.signatures` |
 
+**Note on eval methodology:** These checks catch the most common failure modes observed in v11 but are string-based — a model writing `extra_signatories` in a comment but not in actual logic would pass. True validation requires compiling the output with `aiken check`. Manual spot-checking is recommended alongside automated scores. This aligns with findings in [[1]](#references) on the practical costs of automated validation loops.
+
 All 15 tests also check automatically:
 - `has_validator_block` — output contains `validator { ... }`
 - `has_complete_handler` — at least one handler (`spend(`, `mint(`, etc.) inside the block
@@ -533,6 +603,19 @@ All 15 tests also check automatically:
 ---
 
 ## Results
+
+### Baseline comparison
+
+| Check | Qwen3.5-4B base (no fine-tune) | v11 fine-tune | v14 fine-tune |
+|-------|-------------------------------|---------------|---------------|
+| Correct handler signature | ❌ invented 8-param structure | ❌ | pending |
+| Slash-style imports | ❌ dot-style | ❌ | pending |
+| `extra_signatories` (not `self.signatures`) | ❌ | ❌ | pending |
+| `validity_range` (not `self.time`) | ❌ | ❌ | pending |
+| `lovelace_of` (not `output.assets.ada`) | ❌ | ❌ | pending |
+| `publish` / `vote` handlers | ❌ | ❌ | pending |
+
+*v14 column will be filled after training completes.*
 
 ### v11 model (dataset v11, 3440 examples) — evaluated on 20 test prompts
 
@@ -583,6 +666,23 @@ Actions taken:
 | `rational.compare` / `rational.new` | ~5 | 30+ |
 | complex mint redeemers | ~15 | 40+ |
 | CORRECTION examples | 37 | 87 |
+
+---
+
+## Known limitations
+
+- **PLAUSIBLE_NEEDS_CHECK is 44% of training data.** These examples use patterns like `output.address` and `output.datum` that are plausible but not directly verifiable against stdlib signatures. The model may learn some patterns that work in practice but aren't grounded in documentation. Curriculum ordering (placing PLAUSIBLE last) partially mitigates this.
+- **Eval checks are string-based.** Passing all 15 tests does not guarantee the output compiles. True validation requires `aiken check`. See the note in the Evaluation suite section.
+- **Two governance tests out of 15.** `vote` and `publish` handlers were added in v14 but the eval suite only has 2 tests covering them (vs 9 for spend/mint). Coverage asymmetry may hide regressions in governance patterns.
+- **Single model dependency.** All examples were generated by Claude. Systematic gaps in Claude's Aiken knowledge would propagate uniformly across the dataset — there is no cross-model validation.
+- **No compilation-based audit.** The audit pipeline checks API patterns and import style via regex, not by running `aiken check` on every output. Some syntactically invalid examples may have passed through.
+- **Effectiveness tied to training data representation.** As noted in [[1]](#references), LLM-based improvement strategies work best for problems well-represented in pretraining data. Aiken v3 is a niche language — the base model's prior is weak, which is exactly why fine-tuning helps, but also means the model may struggle on patterns not covered in the dataset.
+
+---
+
+## References
+
+[1] Chacón Sartori, C. & Blum, C. (2026). Combinatorial Optimization for All: Using LLMs to Aid Non-Experts in Improving Optimization Algorithms. *Inteligencia Artificial*, 29(77), 108–132. https://doi.org/10.4114/intartif.vol29iss77pp108-132
 
 ---
 
