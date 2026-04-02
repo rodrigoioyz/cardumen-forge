@@ -182,16 +182,20 @@ python3 scripts/build/build_holdout.py
 
 ### Step 5 — Evaluate
 
+**Single model** (requires LM Studio running with the fine-tuned model loaded):
 ```bash
-# Requires LM Studio running with the fine-tuned model loaded
-export LM_STUDIO_URL=http://192.168.x.x:1234
-export LM_MODEL_NAME=qwen35_4b_aiken_v14_q4
-
 pip install openai
 python3 eval_model.py
-# Compare two runs:
-python3 eval_model.py --compare
 ```
+
+**Multi-model comparison** (all versions loaded simultaneously in LM Studio):
+```bash
+python3 benchmark.py
+# Re-print saved results without re-running:
+python3 benchmark.py --compare-only
+```
+
+> **WSL / Windows note:** LM Studio runs on Windows. From WSL, the Windows host is not `localhost` — find your gateway IP with `ip route show default` and use that. The default in `benchmark.py` is `http://192.168.208.1:3005`. See [Benchmark](#benchmark) for full setup.
 
 ---
 
@@ -240,7 +244,8 @@ dataset_v14_train.jsonl  3,737 examples
 qwen35_4b_aiken_v14_gguf/  Q4_K_M ~2.5 GB
         │
         ▼
-[eval_model.py — 15 prompts, automated pass/fail]
+[eval_model.py / benchmark.py]
+   15 prompts × N model versions, automated pass/fail, comparison table
 ```
 
 ---
@@ -275,8 +280,8 @@ The key design decision: **inject the real stdlib signatures into every prompt a
 
 Key scripts:
 - `regenerate_from_raw.py` — main generation pipeline, one chunk per stdlib function / doc section / pattern file
-- `generate_complex_validators.py` — generates validators combining 2+ APIs (harder patterns)
-- `generate_correction_type_c.py` — generates correction examples for specific hallucination patterns
+- `generate_validators_v2.py` — generates validators combining 2+ APIs (harder patterns), 19 batches
+- `generate_corrections_v2.py` — generates correction examples for specific hallucination patterns
 
 ### Phase 3 — Audit and purge
 
@@ -285,7 +290,7 @@ After each generation run, `audit_v9.py` checks:
 - Contamination — v2 patterns, wrong imports, hallucinated functions
 - Combination coverage — examples that use lovelace+signatories together, NFT+time, etc.
 
-`purge_v9.py` removes contaminated examples without touching correction examples.
+`purge_dot_imports.py` removes contaminated examples without touching correction examples.
 
 This loop ran from v6 to v13, each iteration:
 1. Fine-tune → evaluate on test prompts
@@ -398,14 +403,14 @@ PYTHONUNBUFFERED=1 .venv/bin/python3 -u script.py 2>&1 | tee run.log
 Every dataset version now goes through a fixed audit before training:
 
 ```bash
-grep -c "fn spend("     dataset_v13_train.jsonl   # must be > 5% of total
-grep -c "fn mint("      dataset_v13_train.jsonl
-grep -c "fn withdraw("  dataset_v13_train.jsonl
-grep -c "self.signatures" dataset_v13_train.jsonl  # must be 0 (outside corrections)
-grep -c "self.time"       dataset_v13_train.jsonl  # must be 0
+grep -c "fn spend("     dataset_v14_train_split.jsonl   # must be > 5% of total
+grep -c "fn mint("      dataset_v14_train_split.jsonl
+grep -c "fn withdraw("  dataset_v14_train_split.jsonl
+grep -c "self.signatures" dataset_v14_train_split.jsonl  # must be 0 (outside corrections)
+grep -c "self.time"       dataset_v14_train_split.jsonl  # must be 0
 ```
 
-The `build_dataset_v13.py` script runs this audit automatically and reports coverage percentages with warnings for patterns below 3%.
+The `build_dataset_v14.py` script runs this audit automatically and reports coverage percentages with warnings for patterns below 3%.
 
 ---
 
@@ -494,7 +499,8 @@ cardumen-forge/
 │
 ├── README.md
 ├── colab_finetune.ipynb               # ← start here: QLoRA training notebook
-├── eval_model.py                      # ← start here: 15-prompt eval suite via LM Studio
+├── eval_model.py                      # single-model eval — 15 prompts via LM Studio
+├── benchmark.py                       # ← multi-model comparison — runs all versions sequentially
 │
 ├── scripts/
 │   ├── scrape/                        # Step 1 — collect raw sources
@@ -553,18 +559,26 @@ The training script handles:
 - Training loop with gradient accumulation
 - GGUF Q4_K_M export for LM Studio
 
-Config for RTX PRO 6000 (94 GB VRAM):
+Config (v2–v4, 3 epochs / ~300 steps):
 ```python
 model_name     = "unsloth/Qwen3.5-4B"
 max_seq_length = 2048
 load_in_4bit   = False        # full bfloat16
 lora_r         = 32
 lora_alpha     = 64
-num_epochs     = 3
+num_epochs     = 3            # ~315 steps — undertrained per benchmark results
 learning_rate  = 2e-4
 batch_size     = 4
 grad_accum     = 8            # effective batch = 32
 ```
+
+Config (v5, 7 epochs / ~735 steps — hypothesis test):
+```python
+num_epochs     = 7            # matches v1's step count (~700 steps)
+eval_steps     = 50           # eval every 50 steps, visible individually
+```
+
+> **TRL 1.x note:** `max_seq_length` and `packing` moved from `SFTTrainer()` to `SFTConfig()`. Use `from trl import SFTTrainer, SFTConfig` and pass all training args including `max_seq_length` inside `SFTConfig`. Using `TrainingArguments` will raise `TypeError: SFTTrainer.__init__() got an unexpected keyword argument 'max_seq_length'`.
 
 The system prompt injected at training time reinforces the critical rules:
 ```
@@ -607,27 +621,251 @@ All 15 tests also check automatically:
 - `has_validator_block` — output contains `validator { ... }`
 - `has_complete_handler` — at least one handler (`spend(`, `mint(`, etc.) inside the block
 - `has_slash_imports` — at least one `use x/y` style import present
-- `has_dot_imports` (must be false) — no `use x.y` style imports
-- `has_markdown_fence` (must be false) — no raw ` ``` ` wrapping the code
+- `no_dot_imports` — no `use x.y` style imports (True = clean)
+- `wrapped_in_markdown` — informational only, does not affect pass/fail; records whether the model wrapped the response in a code fence
+
+---
+
+## Benchmark
+
+`benchmark.py` runs the same 15-prompt eval suite across multiple model versions loaded in LM Studio and prints a comparison table. Designed for iterative development: load all your checkpoints, run once, see where each version improved or regressed.
+
+### How it works
+
+1. At startup, queries the LM Studio API and lists every model currently loaded.
+2. For each model in the `MODELS` list, matches it against loaded models (exact → partial).
+3. Runs all 15 prompts **sequentially** against that model (not in parallel — resource-limited environments with ≤8 GB VRAM can only run one inference at a time).
+4. Saves results to `eval_results/bench_{timestamp}_{label}.json`.
+5. After each model, prints an incremental comparison table.
+
+### Setup
+
+**Requires:** LM Studio running with at least one model loaded + `pip install openai`.
+
+**WSL → Windows networking:** LM Studio is a Windows app; its API is not reachable at `localhost` from WSL. The script defaults to `http://192.168.208.1:3005`. To find your actual gateway:
+
+```bash
+ip route show default
+# → default via 192.168.208.1 dev eth0  ← use this IP
+```
+
+If connections still hang, LM Studio may be bound to `127.0.0.1` only. Enable **"Serve on local network"** in LM Studio's server settings, then add a firewall rule (PowerShell as Admin on Windows):
+
+```powershell
+New-NetFirewallRule -DisplayName "LM Studio WSL" -Direction Inbound -Protocol TCP -LocalPort 3005 -Action Allow
+```
+
+Verify with:
+```bash
+curl http://192.168.208.1:3005/v1/models
+# Should return JSON listing all loaded models
+```
+
+### Usage
+
+```bash
+# Run all 4 model versions (auto-detects what's loaded)
+python3 benchmark.py
+
+# Custom URL
+python3 benchmark.py --url http://192.168.208.1:3005
+
+# Run only specific versions
+python3 benchmark.py --models base v3
+
+# Re-print comparison from saved JSON files (no inference)
+python3 benchmark.py --compare-only
+```
+
+### Models configured
+
+Edit the `MODELS` list in `benchmark.py` to match your LM Studio model IDs:
+
+```python
+MODELS = [
+    { "label": "qwen2.5-coder-7b (base)",       "lm_name": "qwen2.5-coder-7b-instruct",                                                    "version": "base" },
+    { "label": "cardano-dev v1",                 "lm_name": "lmstudio-community/aiken_expert/cardano-dev qwen3.5-4b.q4_k_m.gguf",           "version": "v1"   },
+    { "label": "cardano-dev v2 (dataset v13)",   "lm_name": "lmstudio-community/aiken_expert/cardano-dev 2.0 qwen3.5-4b.q4_k_m (1).gguf",  "version": "v2"   },
+    { "label": "cardano-dev v3 (dataset v14)",   "lm_name": "lmstudio-community/aiken_expert/cardano-dev 3.0 qwen3.5-4b.q4_k_m (2).gguf",  "version": "v3"   },
+    { "label": "cardano-dev v4 (dataset v14, run 2)", "lm_name": "lmstudio-community/aiken_expert/cardano-dev 4.0 qwen3.5-4b.q4_k_m (3).gguf", "version": "v4" },
+]
+```
+
+The exact IDs must match what `curl http://<host>:<port>/v1/models` returns. Partial matching is also supported — if your configured name is a substring of the loaded model ID, it will match automatically.
+
+### Output example
+
+```
+══════════════════════════════════════════════════════════════════════
+  CARDUMEN FORGE — BENCHMARK RESULTS
+══════════════════════════════════════════════════════════════════════
+
+  Model                                  Pass    Score       Δ
+  ────────────────────────────────────────────────────────────
+  qwen2.5-coder-7b (base, no fine-tune)   2/15      13%
+  cardano-dev v1                          6/15      40%     +27%  ████
+  cardano-dev v2 (dataset v13)            9/15      60%     +20%  ████████
+  cardano-dev v3 (dataset v14)           13/15      87%     +27%  ████████████
+
+  Category                  qwen2.5-coder-7b  cardano-dev v1  ...
+  ──────────────────────────────────────────────────────────────
+  mint                          0/2 (0%)        1/2 (50%)  ...
+  publish                       0/1 (0%)        0/1 (0%)   ...
+  spend                         2/9 (22%)       4/9 (44%)  ...
+  vote                          0/1 (0%)        0/1 (0%)   ...
+  withdraw                      0/1 (0%)        1/1 (100%) ...
+══════════════════════════════════════════════════════════════════════
+```
+
+Results are saved per model to `eval_results/` and excluded from git (see `.gitignore`).
+
+### Problems encountered building the benchmark
+
+This section exists because the benchmark itself had bugs before producing useful results. Documenting them is part of the process.
+
+**Problem 1 — Inverted pass/fail logic for `has_dot_imports` and `has_markdown_fence`**
+
+The first real run showed 0/15 across all models — including v1, which visually was generating correct Aiken v3 code. The failure list for every v1 prompt was identical: `['has_dot_imports']`.
+
+The bug: `has_dot_imports` stored `True` when dot imports were found (bad) and `False` when they weren't (good). The `all()` pass check required every value to be `True`, so a model that correctly avoided dot imports would *fail* the check. Same logic error for `has_markdown_fence`. Both flags were "bad thing detectors" that needed to be inverted.
+
+Fix: renamed to `no_dot_imports` and `no_markdown_fence`, storing `True` when the output is clean. Result: all previously saved JSONs were invalidated and the suite had to be re-run from scratch.
+
+**Lesson:** When a test suite reports 0% across all models including a fine-tuned one, the suite is wrong before the models are.
+
+---
+
+**Problem 2 (second run) — `no_markdown_fence` was penalizing format, not Aiken knowledge**
+
+After fixing the inversion bug, the second run produced real scores: v1 hit 3/15 (20%), v2 dropped back to 0/15. But looking at the v1 failure list closely, almost every failure was `['no_markdown_fence']` — the code inside was correct Aiken v3. The model had learned to wrap its answer in ` ```aiken ... ``` `, which is reasonable behavior for a chat assistant and actually useful for display. It was not an Aiken error.
+
+Keeping `no_markdown_fence` as a hard pass/fail criterion meant the benchmark was measuring "does the model skip markdown formatting" instead of "does the model know Aiken v3". Those are different questions.
+
+Fix: added `strip_markdown()` to extract code from inside a fence before running all checks. The `wrapped_in_markdown` flag is still recorded in the JSON as informational data — useful for knowing which models tend to add formatting — but it no longer affects the pass/fail score.
+
+```python
+def strip_markdown(output: str) -> str:
+    m = re.search(r'```(?:\w+)?\n(.*?)```', output, re.DOTALL)
+    return m.group(1).strip() if m else output
+```
+
+**Lesson:** Separate format from correctness early. A model that writes perfect code inside a markdown block is better than one that writes broken code without one.
+
+---
+
+**Problem 3 — `wrapped_in_markdown` still inside the `all()` pass check**
+
+After the `strip_markdown()` fix, the third run showed v1 at 7/15 instead of the expected ~10/15. Looking at the failure list, some tests failed with only `['wrapped_in_markdown']` — and the model had written clean code without a markdown fence. The problem: `wrapped_in_markdown = False` (no fence, correct behavior) was still being evaluated by `all()`, which required every value to be `True`.
+
+The flag was documented as "informational only" in a comment, but the pass check didn't know that. A model that wrote clean unwrapped code was being penalized for not using markdown — the exact opposite of what we wanted.
+
+Fix: explicitly excluded `wrapped_in_markdown` from the pass check:
+```python
+results["pass"] = all(v for k, v in results.items() if k not in ("pass", "wrapped_in_markdown"))
+```
+
+After this fix, v1 moved from 7/15 to 10/15 (67%) — the correct score.
+
+**Lesson:** "Informational only" in a comment means nothing if the logic doesn't enforce it. Exclusions need to be explicit in code.
+
+---
+
+**Problem 4 — Wrong dataset label for v3**
+
+During the second run it became clear that `cardano-dev v3` had been labeled `(dataset v14)` in `benchmark.py` since it was configured. That model was actually trained on dataset v13. The v14-trained model is v4.
+
+Fix: corrected the label to `(dataset v13)`. Sounds minor but matters for the comparison table — attributing v13 results to v14 would make v4's improvement look smaller than it is.
+
+---
+
+**Problem 4 — WSL cannot reach LM Studio at `localhost` or `172.x.x.x`**
+
+LM Studio shows its API URL as `http://172.19.48.1:3005` in its UI. That IP is the WSL virtual adapter as seen *from Windows* — the reverse direction. From WSL, the Windows host is not at that address.
+
+The fix was two steps:
+1. Find the actual gateway: `ip route show default` → `192.168.208.1`
+2. Add a Windows Firewall inbound rule for port 3005 (PowerShell as Admin):
+   ```powershell
+   New-NetFirewallRule -DisplayName "LM Studio WSL" -Direction Inbound -Protocol TCP -LocalPort 3005 -Action Allow
+   ```
+
+Verify before every session with `curl http://192.168.208.1:3005/v1/models`. The script default is now set to that address.
+
+---
+
+**Problem 5 — Colab GGUF export cannot be downloaded via browser**
+
+After training v4, the 2.5 GB GGUF file could not be downloaded directly from Colab — the browser showed `TypeError: Failed to fetch` for files above ~500 MB. The file existed in the Colab VM but Colab sessions are ephemeral: once the session closes, all files are gone permanently unless saved elsewhere.
+
+Fix: mount Google Drive during the session and copy before closing:
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+
+import shutil
+shutil.copy(
+    "/content/qwen35_4b_aiken_v14_gguf_gguf/Qwen3.5-4B.Q4_K_M.gguf",
+    "/content/drive/MyDrive/cardano-dev-4.0-q4_k_m.gguf"
+)
+# Also save the LoRA adapter (smaller, useful for re-exporting later)
+shutil.copytree("/content/qwen35_4b_aiken_v14_lora", "/content/drive/MyDrive/cardano-dev-4.0-lora")
+```
+
+**Lesson:** Save to Drive immediately after export, before verifying anything else. The verification step is worthless if the file is gone.
 
 ---
 
 ## Results
 
-### Baseline comparison
+### Benchmark — 15 prompts × 5 model versions
 
-| Check | Qwen3.5-4B base (no fine-tune) | v11 fine-tune | v14 fine-tune |
-|-------|-------------------------------|---------------|---------------|
-| Correct handler signature | ❌ invented 8-param structure | ❌ | pending |
-| Slash-style imports | ❌ dot-style | ❌ | pending |
-| `extra_signatories` (not `self.signatures`) | ❌ | ❌ | pending |
-| `validity_range` (not `self.time`) | ❌ | ❌ | pending |
-| `lovelace_of` (not `output.assets.ada`) | ❌ | ❌ | pending |
-| `publish` / `vote` handlers | ❌ | ❌ | pending |
+| Model | Dataset | Steps | Pass | Score | Δ |
+|-------|---------|-------|------|-------|---|
+| qwen2.5-coder-7b (base) | — | — | 0/15 | 0% | — |
+| cardano-dev v1 | early | ~700 | 10/15 | 67% | +67% |
+| cardano-dev v2 | v13 | ~300 | 1/15 | 7% | −60% |
+| cardano-dev v3 | v13 | ~300 | 2/15 | 13% | +7% |
+| cardano-dev v4 | v14 | ~300 | 2/15 | 13% | 0% |
+| **cardano-dev v5** | **v14** | **~735** | **pending** | | |
 
-*v14 column will be filled after training completes.*
+**By category (final run):**
 
-### v11 model (dataset v11, 3440 examples) — evaluated on 20 test prompts
+| Category | base | v1 | v2 | v3 | v4 |
+|----------|------|----|----|----|----|
+| imports | 0% | 100% | 0% | 0% | 0% |
+| mint | 0% | 50% | 0% | 0% | 0% |
+| multi-handler | 0% | 100% | 0% | 100% | 0% |
+| publish | 0% | 0% | 0% | 0% | 0% |
+| spend | 0% | 75% | 12% | 12% | 25% |
+| vote | 0% | 0% | 0% | 0% | 0% |
+| withdraw | 0% | 100% | 0% | 0% | 0% |
+
+### What the numbers say
+
+**v1 is the best model at 67%** — more than 5× better than v2, v3, or v4. This is the result that forced a real conversation about what changed between versions.
+
+**v2 is a regression, not an improvement.** Going from v1 (early dataset) to v2 (dataset v13, 3× more examples) dropped the score from 67% to 7%. The dominant failure across v2, v3, and v4 is `extra_signatories` — the models stopped using `list.has(self.extra_signatories, key)` and reverted toward `self.signatures`. That is exactly the hallucination pattern the dataset was designed to eliminate.
+
+**v4 (dataset v14) does not improve over v3 (dataset v13).** Both score 13%. The v14 dataset added 529 examples, better coverage, more CORRECTION examples, and a stratified holdout split. None of that translated into benchmark improvement.
+
+### The training steps hypothesis
+
+Two things changed between v1 and all subsequent versions simultaneously:
+
+1. Dataset — larger, more PLAUSIBLE examples
+2. Training steps — v1 ran ~700 steps, v2/v3/v4 ran ~300
+
+With an effective batch size of 32 and 3,363 training examples:
+- 3 epochs → ~315 steps (what v2/v3/v4 did)
+- 7 epochs → ~735 steps (what v1 did)
+
+At 300 steps the model sees each example roughly 3×. At 700 steps it sees each example 7×. For a niche language where the base model's prior is almost zero, 300 repetitions may simply not be enough for the critical patterns (`extra_signatories`, `validity_range`, handler structure) to consolidate.
+
+This is the user's hypothesis — and looking at the data, it is more parsimonious than the dataset quality explanation. The benchmark does not let us separate the two variables (both changed at once), but the pattern is consistent: more steps → better score, regardless of dataset version.
+
+**v5 is the controlled experiment:** same dataset v14, 7 epochs (~735 steps). If v5 scores significantly above v4, training steps was the key variable. If it doesn't, something else is wrong with the dataset.
+
+### v11 model (dataset v11, 3440 examples) — historical reference
 
 | Metric | Result |
 |--------|--------|
@@ -635,15 +873,9 @@ All 15 tests also check automatically:
 | `assets.lovelace_of()` | ❌ — used `output.assets.ada` |
 | `self.extra_signatories` | ❌ — used `self.signatures` |
 | `self.validity_range` | ❌ — used `self.time` |
-| `list.all(outputs, fn)` | ❌ — used `self.outputs.all()` |
 | Slash-style imports | ❌ — used dot-style |
-| Correct Aiken syntax | partial |
 
-The model had learned a completely invented API that was consistent across all 20 prompts. Root cause: only 51 examples with `fn spend(` in 3,440 total.
-
-### v13 model (dataset v13, 3409 examples) — in progress
-
-Training loss at epoch 2: **0.42 train / 0.46 eval** — significantly lower than v11 (0.75 at epoch 2). Evaluation pending after training completes.
+The model had learned a completely invented API consistent across all 20 prompts. Root cause: only 51 examples with `fn spend(` in 3,440 total.
 
 ### v14 dataset — complete
 
