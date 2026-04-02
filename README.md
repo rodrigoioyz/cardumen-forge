@@ -1,8 +1,12 @@
-# Cardano Aiken Copilot — Fine-Tuning Dataset
+# Cardumen Forge
+
+### Aiken v3 Fine-Tuning Dataset & Training Pipeline
 
 A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a small language model in Cardano smart contract development using Aiken v3, the Hydra Head L2 protocol, and CIP standards.
 
 **Goal:** Turn a general-purpose code LLM into a domain expert that generates correct, compilable Aiken v3 validators — runnable locally on 6 GB VRAM.
+
+*Cardumen (Spanish): a school of fish — collective movement, no single center, each one navigates but the group has direction. Forge: to build something strong from raw material. Cardumen Forge is about building the tools for anyone to write Cardano smart contracts.*
 
 ---
 
@@ -699,4 +703,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*Dataset v14 (complete) | 3,737 examples | train: 3,363 / eval: 374 | EN/ES | Aiken v3 + Conway handlers*
+*Cardumen Forge — Dataset v14 (complete) | 3,737 examples | train: 3,363 / eval: 374 | EN/ES | Aiken v3 + Conway handlers*
