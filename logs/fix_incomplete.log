@@ -1,0 +1,61 @@
+Cargando data/processed/dataset_v13_train.jsonl...
+  Cargados: 3409 ejemplos
+
+Incompletos encontrados: 7 / 3409 (0.2%)
+  Por source (solo sources regenerables):
+    aiken_docs                         : 4
+    aiken_stdlib                       : 2
+    aiken_design_patterns              : 1
+
+Cargando fuentes reales...
+System prompt: 14711 chars
+
+[batch 1/2] 4 instrucciones...
+  Recibidos: 4
+  Escritos: 4
+
+[batch 2/2] 3 instrucciones...
+  Recibidos: 3
+  Escritos: 3
+
+=======================================================
+  Procesados          : 7
+  Escritos (buenos)   : 7
+  Descartados         : 0
+
+  HANDLER COVERAGE:
+  fn spend(   : 7 (100.0%)
+  fn mint(    : 0 (0.0%)
+  fn withdraw(: 1 (14.3%)
+  validator {}  : 7
+  own_ref     : 7
+
+  HALLUCINATIONS (debe ser 0 — ya filtrado):
+    ✅ bad_signatures                : 0
+    ✅ bad_self_time                 : 0
+    ✅ bad_method_chain              : 0
+    ✅ bad_ada                       : 0
+    ✅ bad_pub_fn                    : 0
+    ✅ bad_multisig                  : 0
+    ✅ bad_redeemdata                : 0
+    ✅ bad_or_try                    : 0
+    ✅ bad_value_compare             : 0
+    ✅ bad_placeholder               : 0
+    ✅ bad_fence                     : 0
+    ✅ bad_trivial_true              : 0
+  TOTAL BAD: 0
+=======================================================
+
+  Output   : data/processed/validators_fixed.jsonl
+  Skipped  : data/processed/validators_fixed_skipped.jsonl  (0 records — usar para purge)
+  Summary  : data/processed/validators_fixed_summary.json
+
+Para construir dataset v14:
+  Paso 1 — purgar originales incompletos de v13 usando skipped list:
+    python3 purge_v9.py --blacklist data/processed/validators_fixed_skipped.jsonl \
+      --input data/processed/dataset_v13_train.jsonl --output data/processed/dataset_v13_purged.jsonl
+  Paso 2 — agregar fixed + validators_v2:
+    cat data/processed/dataset_v13_purged.jsonl \
+        data/processed/validators_fixed.jsonl \
+        data/processed/validators_v2.jsonl \
+        > data/processed/dataset_v14_train.jsonl

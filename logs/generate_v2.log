@@ -1,0 +1,94 @@
+Cargando fuentes reales...
+System prompt: 15299 chars
+Batches: 12 | Esperados: ~300 ejemplos
+
+[spend_owner_signature] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_ada_payment] Generando ~25 ejemplos...
+  Recibidos: 26
+  Escritos: 26
+
+[spend_time_locked] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_nft_gated] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_multisig] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_combined] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_typed_datum] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[mint_admin_supply] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[mint_time_bounded] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[withdraw_staking] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_reference_inputs] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_list_all_any] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+=======================================================
+  Total generados: 301
+  spend_owner_signature: 25
+  spend_ada_payment: 26
+  spend_time_locked: 25
+  spend_nft_gated: 25
+  spend_multisig: 25
+  spend_combined: 25
+  spend_typed_datum: 25
+  mint_admin_supply: 25
+  mint_time_bounded: 25
+  withdraw_staking: 25
+  spend_reference_inputs: 25
+  spend_list_all_any: 25
+
+  QUALITY CHECK:
+  fn spend(              : 201 (66.8%)
+  fn mint(               : 50 (16.6%)
+  fn withdraw(           : 0 (0.0%)
+  validator block        : 301
+  own_ref: OutputReference: 216
+  --- HALLUCINATIONS ---
+  self.signatures (BAD)  : 0
+  self.time (BAD)        : 0
+  method chain (BAD)     : 0
+  output.assets.ada (BAD): 0
+  bare pub fn (BAD)      : 0
+  MultiSignature (BAD)   : 0
+  RedeemData (BAD)       : 0
+  option.or_try (BAD)    : 0
+  output.value cmp (BAD) : 0
+  placeholder (BAD)      : 0
+  markdown fence (BAD)   : 0
+  trivial True (BAD)     : 0
+  TOTAL BAD              : 0
+=======================================================
+
+  Output : data/processed/validators_v2.jsonl
+  Summary: data/processed/validators_v2_summary.json
+
+Para agregar al dataset v14:
+  cat data/processed/validators_v2.jsonl >> data/processed/dataset_v14_train.jsonl

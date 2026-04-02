@@ -141,24 +141,24 @@ export ANTHROPIC_API_KEY=sk-ant-...
 ### Step 1 — Scrape raw sources (optional, already in `data/raw/`)
 
 ```bash
-python3 scrape_aiken_stdlib_github.py   # stdlib functions → data/raw/aiken_stdlib.json
-python3 scrape_aiken_docs.py            # docs pages      → data/raw/aiken_docs.json
-python3 scrape_hydra_docs.py            # Hydra protocol  → data/raw/hydra_docs.json
-python3 scrape_github.py                # CIPs + patterns → data/raw/cips.json, aiken_design_patterns.json
+python3 scripts/scrape/scrape_aiken_stdlib_github.py   # stdlib functions → data/raw/aiken_stdlib.json
+python3 scripts/scrape/scrape_aiken_docs.py            # docs pages      → data/raw/aiken_docs.json
+python3 scripts/scrape/scrape_hydra_docs.py            # Hydra protocol  → data/raw/hydra_docs.json
+python3 scripts/scrape/scrape_github.py                # CIPs + patterns → data/raw/cips.json
 ```
 
 ### Step 2 — Generate training examples
 
 ```bash
 # Main grounded generation (stdlib, docs, CIPs, patterns, Hydra)
-PYTHONUNBUFFERED=1 python3 -u regenerate_from_raw.py 2>&1 | tee logs/regen.log
+PYTHONUNBUFFERED=1 python3 -u scripts/generate/regenerate_from_raw.py 2>&1 | tee logs/regen.log
 
 # Curated validators (19 batches: all handlers, dict, rational, governance, multi-handler)
-PYTHONUNBUFFERED=1 python3 -u generate_validators_v2.py 2>&1 | tee logs/validators_v3.log
+PYTHONUNBUFFERED=1 python3 -u scripts/generate/generate_validators_v2.py 2>&1 | tee logs/validators_v3.log
 # Output: data/processed/validators_v3.jsonl (479 examples)
 
 # Correction examples (Conway-era errors, dict/rational API errors, tx.fields errors)
-python3 generate_corrections_v2.py
+python3 scripts/generate/generate_corrections_v2.py
 # Output: data/processed/corrections_v2.jsonl (50 examples)
 ```
 
@@ -166,11 +166,11 @@ python3 generate_corrections_v2.py
 
 ```bash
 # Curriculum-ordered merge
-python3 build_dataset_v14.py
+python3 scripts/build/build_dataset_v14.py
 # Output: data/processed/dataset_v14_train.jsonl (3,737 examples)
 
 # Stratified 90/10 holdout split
-python3 build_holdout.py
+python3 scripts/build/build_holdout.py
 # Output: dataset_v14_train_split.jsonl (3,363) + dataset_v14_eval.jsonl (374)
 ```
 
@@ -490,49 +490,55 @@ interval.is_after(deadline, range)     // wrong function name
 ## Project structure
 
 ```
-entrenamiento/
+cardumen-forge/
+│
+├── README.md
+├── colab_finetune.ipynb               # ← start here: QLoRA training notebook
+├── eval_model.py                      # ← start here: 15-prompt eval suite via LM Studio
+│
+├── scripts/
+│   ├── scrape/                        # Step 1 — collect raw sources
+│   │   ├── scrape_aiken_stdlib_github.py   # GitHub API → aiken_stdlib.json
+│   │   ├── scrape_aiken_docs.py            # Crawler → aiken_docs.json
+│   │   ├── scrape_hydra_docs.py            # Crawler → hydra_docs.json
+│   │   ├── scrape_github.py                # CIPs + design patterns
+│   │   └── scrape_aiken_stdlib.py          # Local stdlib scraper (legacy)
+│   │
+│   ├── generate/                      # Step 2 — generate training examples
+│   │   ├── regenerate_from_raw.py          # Main grounded generation pipeline
+│   │   ├── generate_validators_v2.py       # 19-batch curated validator generator
+│   │   ├── generate_corrections_v2.py      # CORRECTION examples v2
+│   │   ├── generate_correction_set.py      # CORRECTION examples v1
+│   │   └── fix_incomplete_validators.py    # Regenerate incomplete outputs
+│   │
+│   ├── audit/                         # Step 3 — quality checks
+│   │   ├── audit_v9.py                     # API coverage + contamination audit
+│   │   ├── audit_dot_imports.py            # Detect dot-style import contamination
+│   │   └── purge_dot_imports.py            # Remove contaminated examples
+│   │
+│   └── build/                         # Step 4 — assemble final dataset
+│       ├── build_dataset_v14.py            # Curriculum-ordered merge (3,737 examples)
+│       └── build_holdout.py                # Stratified 90/10 train/eval split
+│
 ├── data/
-│   ├── raw/
-│   │   ├── aiken_stdlib.json              # 458 functions with real signatures
-│   │   ├── aiken_docs.json                # 28 documentation pages
-│   │   ├── aiken_design_patterns.json     # 22 production pattern files
-│   │   ├── cips.json                      # 134 Cardano Improvement Proposals
-│   │   └── hydra_docs.json                # 35 Hydra protocol pages
+│   ├── raw/                           # Scraped source files (not synthetic)
+│   │   ├── aiken_stdlib.json               # 458 functions with real signatures
+│   │   ├── aiken_docs.json                 # 28 documentation pages
+│   │   ├── aiken_design_patterns.json      # 22 production pattern files
+│   │   ├── cips.json                       # 134 Cardano Improvement Proposals
+│   │   └── hydra_docs.json                 # 35 Hydra protocol pages
 │   └── processed/
-│       ├── correction_set.jsonl           # 37 corrections (v1 — anti-pattern grounding)
-│       ├── corrections_v2.jsonl           # 50 corrections (v2 — Conway-era, dict, rational)
-│       ├── dataset_v13_purged.jsonl       # 3,208 examples (dot-imports purged)
-│       ├── validators_fixed.jsonl         # 7 regenerated complete validators
-│       ├── validators_v3.jsonl            # 479 new validators (19 batches, all handlers)
-│       ├── dataset_v14_train.jsonl        # 3,737 examples (full curriculum-ordered dataset)
-│       ├── dataset_v14_train_split.jsonl  # 3,363 examples (90% — USE FOR TRAINING)
-│       ├── dataset_v14_eval.jsonl         # 374 examples (10% holdout — USE FOR EVAL)
-│       └── archive/                       # superseded datasets (v13_train, validators_v2, etc.)
+│       ├── corrections_v2.jsonl            # 50 CORRECTION examples (v2)
+│       ├── dataset_v13_purged.jsonl        # 3,208 examples (dot-imports purged)
+│       ├── validators_fixed.jsonl          # 7 regenerated complete validators
+│       ├── validators_v3.jsonl             # 479 new validators (19 batches)
+│       ├── dataset_v14_train.jsonl         # 3,737 examples (full dataset)
+│       ├── dataset_v14_train_split.jsonl   # 3,363 examples (90% — USE FOR TRAINING)
+│       ├── dataset_v14_eval.jsonl          # 374 examples (10% holdout — USE FOR EVAL)
+│       └── archive/                        # superseded dataset versions
 │
-├── logs/                                  # generation run logs
-│
-├── scrape_aiken_stdlib_github.py          # GitHub API scraper for stdlib
-├── scrape_aiken_docs.py                   # Crawler for aiken-lang.org
-├── scrape_hydra_docs.py                   # Crawler for hydra.family
-├── scrape_github.py                       # Scraper for CIPs + design patterns
-├── scrape_aiken_stdlib.py                 # Local stdlib scraper (legacy)
-│
-├── regenerate_from_raw.py                 # Main generation pipeline (grounded)
-├── generate_validators_v2.py              # Curated validator generator (19 batches)
-├── generate_correction_set.py             # Correction examples v1
-├── generate_corrections_v2.py             # Correction examples v2 (Conway-era, dict, rational)
-├── fix_incomplete_validators.py           # Regenerate outputs for incomplete examples
-│
-├── audit_v9.py                            # Dataset quality audit
-├── audit_dot_imports.py                   # Detect dot-style import contamination
-├── purge_dot_imports.py                   # Purge dot-import contamination
-├── build_dataset_v14.py                   # Curriculum-ordered merge pipeline (v14)
-├── build_holdout.py                       # Stratified 90/10 train/eval split
-├── eval_model.py                          # 15-prompt eval suite via LM Studio API
-│
-├── colab_finetune.ipynb                   # QLoRA training notebook
-│
-└── archive/scripts/                       # superseded scripts (v13 pipeline, old audits, etc.)
+├── logs/                              # generation run logs
+└── archive/scripts/                   # superseded scripts (v13 pipeline, old audits)
 ```
 
 ---

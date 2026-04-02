@@ -1,0 +1,20 @@
+Batches: 3 | Esperados: ~50 ejemplos
+
+[conway_era_errors] Generando ~20 ejemplos...
+  Recibidos: 20
+[tx_fields_errors] Generando ~15 ejemplos...
+  Recibidos: 15
+[dict_rational_errors] Generando ~15 ejemplos...
+  Recibidos: 15
+
+====================================================
+  Total generados: 50
+  conway_era_errors: 20
+  tx_fields_errors: 15
+  dict_rational_errors: 15
+====================================================
+
+  Output: data/processed/corrections_v2.jsonl (50 líneas)
+
+Agregar a v14:
+  Actualizar build_dataset_v14.py para incluir data/processed/corrections_v2.jsonl

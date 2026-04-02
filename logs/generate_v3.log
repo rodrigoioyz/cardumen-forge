@@ -1,0 +1,129 @@
+Cargando fuentes reales...
+System prompt: 24522 chars
+Batches: 19 | Esperados: ~475 ejemplos
+
+[spend_owner_signature] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_ada_payment] Generando ~25 ejemplos...
+  Recibidos: 26
+  Escritos: 26
+
+[spend_time_locked] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_nft_gated] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_multisig] Generando ~25 ejemplos...
+  Recibidos: 26
+  Escritos: 26
+
+[spend_combined] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_typed_datum] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[mint_admin_supply] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[mint_time_bounded] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[withdraw_staking] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_reference_inputs] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[spend_list_all_any] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[publish_cert] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[vote_governance] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[mint_complex_redeemer] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[interval_advanced] Generando ~25 ejemplos...
+  Recibidos: 26
+  Escritos: 26
+
+[dict_patterns] Generando ~25 ejemplos...
+  Recibidos: 0
+  ERROR: batch dict_patterns returned 0 examples. Abortando.
+Cargando fuentes reales...
+System prompt: 24522 chars
+Batches: 19 | Esperados: ~475 ejemplos
+Reanudando desde 'dict_patterns' (3 batches restantes)
+
+[dict_patterns] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[rational_fee] Generando ~25 ejemplos...
+  Recibidos: 25
+  Escritos: 25
+
+[multi_handler] Generando ~25 ejemplos...
+  Recibidos: 0
+  ERROR: batch multi_handler returned 0 examples. Abortando.
+Cargando fuentes reales...
+System prompt: 24522 chars
+Batches: 19 | Esperados: ~475 ejemplos
+Reanudando desde 'multi_handler' (1 batches restantes)
+
+[multi_handler] Generando ~25 ejemplos...
+  Recibidos: 26
+  Escritos: 26
+
+=======================================================
+  Total generados: 26
+  multi_handler: 26
+
+  QUALITY CHECK:
+  spend handler          : 26 (100.0%)
+  mint handler           : 21 (80.8%)
+  withdraw handler       : 14 (53.8%)
+  publish handler        : 0 (0.0%)
+  vote handler           : 0 (0.0%)
+  validator block        : 26
+  own_ref: OutputReference: 26
+  --- HALLUCINATIONS ---
+  self.signatures (BAD)  : 0
+  self.time (BAD)        : 0
+  method chain (BAD)     : 0
+  output.assets.ada (BAD): 0
+  bare pub fn (BAD)      : 0
+  MultiSignature (BAD)   : 0
+  RedeemData (BAD)       : 0
+  option.or_try (BAD)    : 0
+  output.value cmp (BAD) : 0
+  placeholder (BAD)      : 0
+  markdown fence (BAD)   : 0
+  trivial True (BAD)     : 0
+  TOTAL BAD              : 0
+=======================================================
+
+  Output : data/processed/validators_v3.jsonl
+  Summary: data/processed/validators_v3_summary.json
+
+Para agregar al dataset v14:
+  cat data/processed/validators_v3.jsonl >> data/processed/dataset_v14_train.jsonl
