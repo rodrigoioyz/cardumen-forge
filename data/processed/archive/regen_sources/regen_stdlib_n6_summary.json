@@ -1,0 +1,14 @@
+{
+  "total": 1044,
+  "failed_chunks": 0,
+  "n_per_chunk": 6,
+  "source": "stdlib",
+  "by_source": {
+    "aiken_stdlib": 1044
+  },
+  "by_lang": {
+    "en": 624,
+    "es": 420
+  },
+  "output": "data/processed/regen_stdlib_n6.jsonl"
+}

@@ -1,0 +1,14 @@
+{
+  "total": 132,
+  "failed_chunks": 0,
+  "n_per_chunk": 6,
+  "source": "patterns",
+  "by_source": {
+    "aiken_design_patterns": 132
+  },
+  "by_lang": {
+    "en": 82,
+    "es": 50
+  },
+  "output": "data/processed/regen_patterns_n6.jsonl"
+}

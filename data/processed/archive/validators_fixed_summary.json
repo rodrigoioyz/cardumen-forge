@@ -1,0 +1,30 @@
+{
+  "total_incomplete_found": 7,
+  "total_incomplete_processed": 7,
+  "total_fixed": 7,
+  "total_skipped": 0,
+  "by_lang": {
+    "en": 5,
+    "es": 2
+  },
+  "quality": {
+    "fn_spend": 7,
+    "fn_mint": 0,
+    "fn_withdraw": 1,
+    "validator_block": 7,
+    "own_ref": 7,
+    "bad_signatures": 0,
+    "bad_self_time": 0,
+    "bad_method_chain": 0,
+    "bad_ada": 0,
+    "bad_pub_fn": 0,
+    "bad_multisig": 0,
+    "bad_redeemdata": 0,
+    "bad_or_try": 0,
+    "bad_value_compare": 0,
+    "bad_placeholder": 0,
+    "bad_fence": 0,
+    "bad_trivial_true": 0,
+    "total_bad": 0
+  }
+}

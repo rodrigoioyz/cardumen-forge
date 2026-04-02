@@ -1,0 +1,41 @@
+{
+  "total": 301,
+  "by_batch": {
+    "spend_owner_signature": 25,
+    "spend_ada_payment": 26,
+    "spend_time_locked": 25,
+    "spend_nft_gated": 25,
+    "spend_multisig": 25,
+    "spend_combined": 25,
+    "spend_typed_datum": 25,
+    "mint_admin_supply": 25,
+    "mint_time_bounded": 25,
+    "withdraw_staking": 25,
+    "spend_reference_inputs": 25,
+    "spend_list_all_any": 25
+  },
+  "by_lang": {
+    "en": 164,
+    "es": 137
+  },
+  "quality": {
+    "fn_spend": 201,
+    "fn_mint": 50,
+    "fn_withdraw": 0,
+    "validator_block": 301,
+    "own_ref": 216,
+    "bad_signatures": 0,
+    "bad_self_time": 0,
+    "bad_method_chain": 0,
+    "bad_ada": 0,
+    "bad_pub_fn": 0,
+    "bad_multisig": 0,
+    "bad_redeemdata": 0,
+    "bad_or_try": 0,
+    "bad_value_compare": 0,
+    "bad_placeholder": 0,
+    "bad_fence": 0,
+    "bad_trivial_true": 0,
+    "total_bad": 0
+  }
+}

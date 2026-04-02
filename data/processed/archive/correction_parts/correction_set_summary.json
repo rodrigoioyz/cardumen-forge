@@ -1,0 +1,16 @@
+{
+  "total": 130,
+  "by_type": {
+    "TYPE_A_signatories": 25,
+    "TYPE_A_assets": 25,
+    "TYPE_A_interval": 25,
+    "TYPE_A_list_and_reference": 25,
+    "TYPE_B_imports": 30,
+    "TYPE_C_corrections": 0
+  },
+  "by_lang": {
+    "en": 130
+  },
+  "output": "data/processed/correction_set.jsonl",
+  "model": "claude-sonnet-4-6"
+}

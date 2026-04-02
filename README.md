@@ -36,14 +36,38 @@ This project builds a dataset grounded in real documentation to fix those failur
 
 ## Dataset
 
-### Current state (v13)
+### Current state (v14 — final)
 
 | Metric | Value |
 |--------|-------|
-| Total examples | 3,409 |
+| Total examples (v14 train) | 3,737 |
+| Train split (90%) | 3,363 |
+| Eval/holdout split (10%) | 374 |
 | Languages | EN 63% / ES 37% |
 | Contamination (hallucinated APIs) | 0 |
-| Sources | 7 |
+| Dot-import contamination purged | 201 (all `aiken_stdlib` / `PLAUSIBLE_NEEDS_CHECK`) |
+| Truly incomplete outputs (no handler) | 7 (fixed in `validators_fixed.jsonl`) |
+| Sources | 8 |
+
+### v14 composition (final)
+
+| Source | Examples | Status |
+|--------|----------|--------|
+| CORRECTION (v13) | 37 | anti-pattern corrections |
+| CORRECTION (v2) | 50 | new: Conway-era, dict, rational, tx.fields errors |
+| VERIFIED_V3_ALIGNED (v13) | 1,558 | deduped against fixed |
+| `validators_fixed.jsonl` | 7 | regenerated from 7 incompletes |
+| `validators_v3.jsonl` | 479 | 19 batches: governance, cert, dict, rational, multi-handler |
+| PLAUSIBLE_NEEDS_CHECK (v13) | 1,606 | deduped against fixed |
+| **Total** | **3,737** | 0 duplicates |
+
+**Status distribution:** CORRECTION 87 (2.3%) / VERIFIED_V3_ALIGNED 1,983 (53%) / PLAUSIBLE_NEEDS_CHECK 1,667 (44.6%)
+
+**Training order (curriculum):** CORRECTION → VERIFIED_V3_ALIGNED → validators_v3 → PLAUSIBLE_NEEDS_CHECK
+
+**Holdout split:** stratified 90/10 by `review_status`, seed=42
+- `dataset_v14_train_split.jsonl` — 3,363 examples (for fine-tuning)
+- `dataset_v14_eval.jsonl` — 374 examples (for evaluation)
 
 ### Sources
 
@@ -54,6 +78,7 @@ This project builds a dataset grounded in real documentation to fix those failur
 | `aiken_docs` | 396 | Language concepts, type system, syntax from official docs |
 | `aiken_design_patterns` | 209 | Production patterns from Anastasia-Labs |
 | `aiken_v3_curated` | 260 | Complex validators with correct handler structure (spend/mint/withdraw) |
+| `aiken_v3_curated_v2` | 301+ | New validators: reference inputs, typed datum, interval, governance, dict, rational |
 | `correction_set` | 167 | Targeted negative examples — broken code in `input`, correct fix in `output` |
 | `hydra_docs` | 68 | Hydra Head protocol — lifecycle, snapshots, fanout, L2 transactions |
 
@@ -77,6 +102,74 @@ Each example is a JSON line:
 - `VERIFIED_V3_ALIGNED` — all APIs are confirmed in `aiken_stdlib.json`
 - `PLAUSIBLE_NEEDS_CHECK` — uses patterns like `output.address` comparison that are plausible but not in the stdlib signatures
 - `CORRECTION` — negative correction example (broken → fixed)
+
+---
+
+## Quick start — reproduce from scratch
+
+### Prerequisites
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install anthropic openai datasets transformers trl peft unsloth
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### Step 1 — Scrape raw sources (optional, already in `data/raw/`)
+
+```bash
+python3 scrape_aiken_stdlib_github.py   # stdlib functions → data/raw/aiken_stdlib.json
+python3 scrape_aiken_docs.py            # docs pages      → data/raw/aiken_docs.json
+python3 scrape_hydra_docs.py            # Hydra protocol  → data/raw/hydra_docs.json
+python3 scrape_github.py                # CIPs + patterns → data/raw/cips.json, aiken_design_patterns.json
+```
+
+### Step 2 — Generate training examples
+
+```bash
+# Main grounded generation (stdlib, docs, CIPs, patterns, Hydra)
+PYTHONUNBUFFERED=1 python3 -u regenerate_from_raw.py 2>&1 | tee logs/regen.log
+
+# Curated validators (19 batches: all handlers, dict, rational, governance, multi-handler)
+PYTHONUNBUFFERED=1 python3 -u generate_validators_v2.py 2>&1 | tee logs/validators_v3.log
+# Output: data/processed/validators_v3.jsonl (479 examples)
+
+# Correction examples (Conway-era errors, dict/rational API errors, tx.fields errors)
+python3 generate_corrections_v2.py
+# Output: data/processed/corrections_v2.jsonl (50 examples)
+```
+
+### Step 3 — Build and split dataset
+
+```bash
+# Curriculum-ordered merge
+python3 build_dataset_v14.py
+# Output: data/processed/dataset_v14_train.jsonl (3,737 examples)
+
+# Stratified 90/10 holdout split
+python3 build_holdout.py
+# Output: dataset_v14_train_split.jsonl (3,363) + dataset_v14_eval.jsonl (374)
+```
+
+### Step 4 — Fine-tune (Google Colab)
+
+1. Upload `data/processed/dataset_v14_train_split.jsonl` to Colab
+2. Run `colab_finetune.ipynb`
+3. Download `qwen35_4b_aiken_v14_gguf/` and load in LM Studio
+
+### Step 5 — Evaluate
+
+```bash
+# Requires LM Studio running with the fine-tuned model loaded
+export LM_STUDIO_URL=http://192.168.x.x:1234
+export LM_MODEL_NAME=qwen35_4b_aiken_v14_q4
+
+pip install openai
+python3 eval_model.py
+# Compare two runs:
+python3 eval_model.py --compare
+```
 
 ---
 
@@ -194,6 +287,40 @@ validator my_contract {
 
 **Fix:** `build_dataset_v13.py` normalizes all missing `review_status` to `PLAUSIBLE_NEEDS_CHECK` during the merge step, with explicit counting and logging of how many records were fixed.
 
+### Problem 5 — Overly strict handler detection caused false "incomplete" count
+
+**Symptom:** An audit script reported 475 examples (13.9%) as "incomplete" — instructions asking for validator code but outputs without a proper handler. Attempts to regenerate them produced 0 successful fixes across dozens of batches.
+
+**Root cause (detection):** The `has_complete_handler()` check searched for `fn spend(` / `fn mint(` / `fn withdraw(` inside a `validator {}` block. However, Aiken v3 allows the `fn` keyword to be omitted inside validator blocks — `spend(...)` is also valid syntax. Most of the 475 flagged examples were using the bare form and were actually correct.
+
+**Root cause (regeneration):** Two additional bugs compounded the problem:
+1. Matching regenerated outputs back to originals was done by exact instruction text. Claude consistently paraphrases instructions instead of copying them verbatim, so 100% of batches returned "instruction not found" and were dropped.
+2. The `CODE_PHRASE` regex matched "show a practical example of using X" even when X was a pure utility function (e.g., BLS12-381 scalar operations) that has nothing to do with validators.
+
+**Fix:**
+1. Updated `has_complete_handler()` to accept both `fn spend(` and bare `spend(` inside validator blocks:
+   ```python
+   return bool(re.search(r'\b(?:fn\s+)?(spend|mint|withdraw)\s*\(', body))
+   ```
+2. Switched matching from instruction-text lookup to **positional matching** — Claude receives numbered instructions `[1], [2], ...` and returns items in the same order; the script zips by index, not by string comparison.
+3. Tightened `CODE_PHRASE` regex to only flag instructions that explicitly mention `validator`, `contract`, `handler`, `spend`, `mint`, or `withdraw` — not just any "show me an example of X".
+4. Added `EXPLAIN_PHRASE` filter to exclude conceptual questions ("explain how", "what is", "how does X work") that happen to mention validators — their ideal answer is prose, not code.
+
+**Result:** True incomplete count dropped from 475 → **7**. All 7 were regenerated successfully with 0 drops and 0 hallucinations.
+
+**Lesson:** When building detection heuristics for dataset quality, validate them on real samples before acting on the counts. A grep-style keyword check ("instruction contains 'write'") will over-count by 60x compared to a phrase-level structural check.
+
+### Problem 6 — Python stdout buffering hides script progress when piped to tee
+
+**Symptom:** Script appeared to hang with 0 bytes written to log file, despite process being alive. No output visible for 10+ minutes.
+
+**Root cause:** Python buffers stdout when output is piped (e.g., `python3 script.py | tee log`). The buffer fills only after ~8 KB of output, so nothing appears in the log until a batch of results accumulates.
+
+**Fix:** Always run generation scripts with `PYTHONUNBUFFERED=1` and the `-u` flag:
+```bash
+PYTHONUNBUFFERED=1 .venv/bin/python3 -u script.py 2>&1 | tee run.log
+```
+
 ### Lesson: audit before training
 
 Every dataset version now goes through a fixed audit before training:
@@ -214,6 +341,8 @@ The `build_dataset_v13.py` script runs this audit automatically and reports cove
 
 ### Verified handler signatures
 
+All six Cardano handler purposes are valid. The `fn` keyword is optional inside validator blocks — both `fn spend(` and bare `spend(` compile.
+
 ```aiken
 validator my_contract {
   fn spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool {
@@ -225,7 +354,19 @@ validator my_contract {
   fn withdraw(redeemer: T, account: Credential, self: Transaction) -> Bool {
     ...
   }
+  fn publish(redeemer: T, cert: Certificate, self: Transaction) -> Bool {
+    ...
+  }
+  fn vote(redeemer: T, voter: Voter, self: Transaction) -> Bool {
+    ...
+  }
 }
+```
+
+Imports for Conway-era handlers:
+```aiken
+use cardano/certificate.{Certificate}
+use cardano/governance.{Voter, ProposalProcedure}
 ```
 
 ### Verified import style (slash, not dot)
@@ -280,28 +421,46 @@ interval.is_after(deadline, range)     // wrong function name
 entrenamiento/
 ├── data/
 │   ├── raw/
-│   │   ├── aiken_stdlib.json          # 458 functions with real signatures
-│   │   ├── aiken_docs.json            # 28 documentation pages
-│   │   ├── aiken_design_patterns.json # 22 production pattern files
-│   │   ├── cips.json                  # 134 Cardano Improvement Proposals
-│   │   └── hydra_docs.json            # 35 Hydra protocol pages
+│   │   ├── aiken_stdlib.json              # 458 functions with real signatures
+│   │   ├── aiken_docs.json                # 28 documentation pages
+│   │   ├── aiken_design_patterns.json     # 22 production pattern files
+│   │   ├── cips.json                      # 134 Cardano Improvement Proposals
+│   │   └── hydra_docs.json                # 35 Hydra protocol pages
 │   └── processed/
-│       └── dataset_v13_train.jsonl    # 3,409 clean examples (active)
+│       ├── correction_set.jsonl           # 37 corrections (v1 — anti-pattern grounding)
+│       ├── corrections_v2.jsonl           # 50 corrections (v2 — Conway-era, dict, rational)
+│       ├── dataset_v13_purged.jsonl       # 3,208 examples (dot-imports purged)
+│       ├── validators_fixed.jsonl         # 7 regenerated complete validators
+│       ├── validators_v3.jsonl            # 479 new validators (19 batches, all handlers)
+│       ├── dataset_v14_train.jsonl        # 3,737 examples (full curriculum-ordered dataset)
+│       ├── dataset_v14_train_split.jsonl  # 3,363 examples (90% — USE FOR TRAINING)
+│       ├── dataset_v14_eval.jsonl         # 374 examples (10% holdout — USE FOR EVAL)
+│       └── archive/                       # superseded datasets (v13_train, validators_v2, etc.)
 │
-├── scrape_aiken_stdlib_github.py      # GitHub API scraper for stdlib
-├── scrape_aiken_docs.py               # Crawler for aiken-lang.org
-├── scrape_hydra_docs.py               # Crawler for hydra.family
-├── scrape_github.py                   # Scraper for CIPs + design patterns
+├── logs/                                  # generation run logs
 │
-├── regenerate_from_raw.py             # Main generation pipeline (grounded)
-├── generate_complex_validators.py     # Complex multi-API validators
-├── generate_correction_type_c.py      # Negative correction examples
+├── scrape_aiken_stdlib_github.py          # GitHub API scraper for stdlib
+├── scrape_aiken_docs.py                   # Crawler for aiken-lang.org
+├── scrape_hydra_docs.py                   # Crawler for hydra.family
+├── scrape_github.py                       # Scraper for CIPs + design patterns
+├── scrape_aiken_stdlib.py                 # Local stdlib scraper (legacy)
 │
-├── audit_v9.py                        # Dataset quality audit
-├── purge_v9.py                        # Remove contaminated examples
-├── build_dataset_v13.py               # Merge + normalize + audit pipeline
+├── regenerate_from_raw.py                 # Main generation pipeline (grounded)
+├── generate_validators_v2.py              # Curated validator generator (19 batches)
+├── generate_correction_set.py             # Correction examples v1
+├── generate_corrections_v2.py             # Correction examples v2 (Conway-era, dict, rational)
+├── fix_incomplete_validators.py           # Regenerate outputs for incomplete examples
 │
-└── colab_finetune.ipynb               # QLoRA training notebook
+├── audit_v9.py                            # Dataset quality audit
+├── audit_dot_imports.py                   # Detect dot-style import contamination
+├── purge_dot_imports.py                   # Purge dot-import contamination
+├── build_dataset_v14.py                   # Curriculum-ordered merge pipeline (v14)
+├── build_holdout.py                       # Stratified 90/10 train/eval split
+├── eval_model.py                          # 15-prompt eval suite via LM Studio API
+│
+├── colab_finetune.ipynb                   # QLoRA training notebook
+│
+└── archive/scripts/                       # superseded scripts (v13 pipeline, old audits, etc.)
 ```
 
 ---
@@ -340,6 +499,39 @@ The system prompt injected at training time reinforces the critical rules:
 
 ---
 
+## Evaluation suite
+
+15 prompts designed to reproduce the specific failure modes of the v11 model. Each test has automated checks — `must_contain` (required patterns) and `must_not_contain` (hallucination targets). A test passes only if all checks pass.
+
+Run with `eval_model.py` (requires LM Studio + openai package).
+
+| # | ID | Category | Key checks (must contain) | Hallucination targets (must not contain) |
+|---|-----|----------|--------------------------|------------------------------------------|
+| 1 | `spend_owner_sig` | spend / signature | `spend(`, `extra_signatories` | `self.signatures`, `self.time`, `use cardano.` |
+| 2 | `spend_ada_payment` | spend / ADA | `spend(`, `lovelace_of` | `output.assets.ada`, `self.time` |
+| 3 | `spend_time_lock` | spend / time | `spend(`, `validity_range` | `self.time`, `block_num` |
+| 4 | `spend_nft_gate` | spend / NFT | `spend(`, `has_nft` | `output.assets.ada`, `self.time` |
+| 5 | `spend_multisig` | spend / multisig | `spend(`, `extra_signatories`, `list.count` | `MultiSignature`, `self.signatures` |
+| 6 | `mint_nft_one_shot` | mint / one-shot | `mint(`, `policy_id` | `fn spend(`, `self.signatures` |
+| 7 | `mint_admin_capped` | mint / capped supply | `mint(`, `extra_signatories`, `quantity_of` | `self.signatures`, `self.time` |
+| 8 | `withdraw_staking` | withdraw | `withdraw(`, `extra_signatories` | `self.signatures`, `self.time` |
+| 9 | `spend_combined` | spend / combined | `spend(`, `extra_signatories`, `validity_range` | `self.signatures`, `self.time` |
+| 10 | `spend_reference_input` | spend / reference inputs | `spend(`, `reference_inputs`, `find_input` | `self.signatures`, `self.time` |
+| 11 | `vote_governance` | vote / governance | `vote(`, `Voter` | `fn spend(`, `self.signatures` |
+| 12 | `publish_cert` | publish / certificate | `publish(`, `Certificate` | `self.signatures`, `self.time` |
+| 13 | `multi_handler` | multi-handler | `spend(`, `mint(`, `extra_signatories` | `self.signatures`, `self.time` |
+| 14 | `import_style` | imports | `use cardano/`, `use aiken/`, `spend(` | `use cardano.`, `use aiken.` |
+| 15 | `typed_datum` | spend / typed datum | `spend(`, `VestingDatum`, `validity_range` | `self.time`, `self.signatures` |
+
+All 15 tests also check automatically:
+- `has_validator_block` — output contains `validator { ... }`
+- `has_complete_handler` — at least one handler (`spend(`, `mint(`, etc.) inside the block
+- `has_slash_imports` — at least one `use x/y` style import present
+- `has_dot_imports` (must be false) — no `use x.y` style imports
+- `has_markdown_fence` (must be false) — no raw ` ``` ` wrapping the code
+
+---
+
 ## Results
 
 ### v11 model (dataset v11, 3440 examples) — evaluated on 20 test prompts
@@ -360,6 +552,38 @@ The model had learned a completely invented API that was consistent across all 2
 
 Training loss at epoch 2: **0.42 train / 0.46 eval** — significantly lower than v11 (0.75 at epoch 2). Evaluation pending after training completes.
 
+### v14 dataset — complete
+
+External audit (GPT-4) of v13 identified:
+- **201 examples with dot-style imports** (`use aiken.crypto.bls12_381.g2`) — all `aiken_stdlib` / `PLAUSIBLE_NEEDS_CHECK`. Purged.
+- **53% PLAUSIBLE_NEEDS_CHECK** — flagged as concern but confirmed not contamination: these use `output.address`, `output.datum` etc. which are valid Aiken v3 patterns not covered by stdlib signature scraping. Kept.
+- **Coverage gaps**: governance handlers (vote/publish), advanced interval logic, dict/pairs patterns, rational arithmetic, multi-handler validators.
+- **Only 37 CORRECTION examples (1%)** — insufficient anti-pattern density.
+- **No holdout/eval split** — no way to measure overfitting during training.
+
+Actions taken:
+1. Purged 201 dot-import examples → `dataset_v13_purged.jsonl` (3,208)
+2. Fixed 7 truly incomplete validators → `validators_fixed.jsonl`
+3. Generated 479 new validators covering all gaps → `validators_v3.jsonl` (19 batches, 0 hallucinations)
+4. Generated 50 new CORRECTION examples → `corrections_v2.jsonl` (Conway-era errors, dict/rational API errors, tx.fields errors)
+5. Built final curriculum-ordered dataset → `dataset_v14_train.jsonl` (3,737 examples)
+6. Created stratified 90/10 holdout split → `dataset_v14_train_split.jsonl` (3,363) + `dataset_v14_eval.jsonl` (374)
+
+**Training strategy for v14:** curriculum ordering within a single run — CORRECTION first to anchor anti-patterns, VERIFIED next for canonical syntax, new curated validators for coverage, PLAUSIBLE last for diversity.
+
+**Coverage added in v14 vs v13:**
+
+| Handler/Pattern | v13 | v14 |
+|----------------|-----|-----|
+| `publish` (certificate) | 0 | 25+ |
+| `vote` (governance) | 0 | 25+ |
+| multi-handler validators | ~10 | 52+ |
+| `interval.intersection` / `hull` | ~5 | 30+ |
+| `dict.get` / `dict.to_pairs` | ~10 | 35+ |
+| `rational.compare` / `rational.new` | ~5 | 30+ |
+| complex mint redeemers | ~15 | 40+ |
+| CORRECTION examples | 37 | 87 |
+
 ---
 
 ## License
@@ -375,4 +599,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*Dataset v13 | 3,409 examples | EN/ES | Aiken v3*
+*Dataset v14 (complete) | 3,737 examples | train: 3,363 / eval: 374 | EN/ES | Aiken v3 + Conway handlers*

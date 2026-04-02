@@ -1,0 +1,32 @@
+{
+  "total": 26,
+  "by_batch": {
+    "multi_handler": 26
+  },
+  "by_lang": {
+    "en": 13,
+    "es": 13
+  },
+  "quality": {
+    "fn_spend": 26,
+    "fn_mint": 21,
+    "fn_withdraw": 14,
+    "fn_publish": 0,
+    "fn_vote": 0,
+    "validator_block": 26,
+    "own_ref": 26,
+    "bad_signatures": 0,
+    "bad_self_time": 0,
+    "bad_method_chain": 0,
+    "bad_ada": 0,
+    "bad_pub_fn": 0,
+    "bad_multisig": 0,
+    "bad_redeemdata": 0,
+    "bad_or_try": 0,
+    "bad_value_compare": 0,
+    "bad_placeholder": 0,
+    "bad_fence": 0,
+    "bad_trivial_true": 0,
+    "total_bad": 0
+  }
+}

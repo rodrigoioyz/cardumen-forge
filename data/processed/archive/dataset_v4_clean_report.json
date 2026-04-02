@@ -1,0 +1,9 @@
+{
+  "input": 2119,
+  "kept": 1803,
+  "removed_v2": 112,
+  "removed_haskell": 89,
+  "removed_hydra_tooling": 59,
+  "removed_list_count": 1,
+  "removed_low_cip": 55
+}

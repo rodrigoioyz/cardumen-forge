@@ -1,0 +1,38 @@
+{
+  "total": 260,
+  "by_batch": {
+    "spend_lovelace_signatories_a": 20,
+    "spend_lovelace_signatories_b": 20,
+    "spend_nft_time_a": 20,
+    "spend_nft_time_b": 20,
+    "spend_payment_a": 20,
+    "spend_payment_b": 20,
+    "mint_complex_a": 20,
+    "mint_complex_b": 20,
+    "withdraw_complex": 20,
+    "spend_reference_inputs": 20,
+    "spend_list_operations": 20,
+    "spend_datum_typed": 20,
+    "spend_combined_three_way": 20
+  },
+  "by_lang": {
+    "en": 155,
+    "es": 105
+  },
+  "by_status": {
+    "PLAUSIBLE_NEEDS_CHECK": 106,
+    "VERIFIED_V3_ALIGNED": 154
+  },
+  "quality": {
+    "fn_spend": 200,
+    "fn_mint": 40,
+    "fn_withdraw": 20,
+    "own_ref": 200,
+    "bad_signatures": 0,
+    "bad_self_time": 0,
+    "bad_method_chain": 0
+  },
+  "stdlib_source": "data/raw/aiken_stdlib.json",
+  "patterns_source": "data/raw/aiken_design_patterns.json",
+  "docs_source": "data/raw/aiken_docs.json"
+}

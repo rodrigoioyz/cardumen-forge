@@ -1,0 +1,12 @@
+{
+  "total": 51,
+  "by_batch": {
+    "TYPE_C_batch1": 25,
+    "TYPE_C_batch2": 26
+  },
+  "by_lang": {
+    "en": 51
+  },
+  "output": "data/processed/correction_set_type_c.jsonl",
+  "model": "claude-sonnet-4-6"
+}
