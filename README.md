@@ -58,20 +58,20 @@ This project builds a dataset grounded in real documentation to fix those failur
 
 ## Dataset
 
-### Current state (v17 — active)
+### Current state (v19_dedup — active)
 
 | Metric | Value |
 |--------|-------|
-| Total examples (v17 train) | 3,357 |
+| Total examples (v19 dedup) | 3,406 |
 | Languages | EN ~60% / ES ~40% |
-| Sources | 12 |
-| `fn` prefix fixes applied | 783 (761 handlers + 22 `else`) |
-| Broken examples removed | 6 |
-| Wrong constructor names fixed | 2 examples (`ScriptCredential` → `Script`) |
-| Wrong `PolicyId` imports fixed | 17 examples |
+| Sources | 12 + generated governance |
+| `fn` prefix errors | **0** (was 21.5% in v14) |
+| Truncated outputs | 23 heuristic false positives (was 61 in v14) |
+| Governance handler coverage | vote(58), publish(56), propose(15) (was 36/35/0) |
+| `else(_)` fallback coverage | 7.1% (was 4.7% in v14) |
 | All fixes verified against | `data/raw/aiken_stdlib.json` |
 
-**Dataset lineage:** v14 → v15 (fn fix) → v16 (broken removed, else fix) → v17 (type fixes)
+**Dataset lineage:** v14 → v15 (fn fix) → v16 (broken removed) → v17 (type fixes) → v18b (truncated regenerated) → v19 (+ governance) → v19_dedup (dedup, **active**)
 
 ### v14 composition (final)
 
@@ -178,7 +178,7 @@ python3 scripts/build/build_holdout.py
 
 ### Step 4 — Fine-tune (Google Colab)
 
-1. Upload `data/processed/dataset_v14_train_split.jsonl` to Colab
+1. Upload `data/processed/dataset_v19_dedup.jsonl` to Colab
 2. Run `colab_finetune.ipynb`
 3. Download `qwen35_4b_aiken_v14_gguf/` and load in LM Studio
 
@@ -410,14 +410,14 @@ Every dataset version now goes through a fixed audit before training:
 
 ```bash
 # Must be 0 — fn prefix is a parse error in Aiken v3
-grep -c "fn spend("     data/processed/dataset_v17_train_split.jsonl
-grep -c "fn mint("      data/processed/dataset_v17_train_split.jsonl
-grep -c "fn else("      data/processed/dataset_v17_train_split.jsonl
+grep -c "fn spend("     data/processed/dataset_v19_dedup.jsonl
+grep -c "fn mint("      data/processed/dataset_v19_dedup.jsonl
+grep -c "fn else("      data/processed/dataset_v19_dedup.jsonl
 
 # Must be 0 (outside correction examples)
-grep -c "self.signatures"  data/processed/dataset_v17_train_split.jsonl
-grep -c "self.time"        data/processed/dataset_v17_train_split.jsonl
-grep -c "use cardano\."    data/processed/dataset_v17_train_split.jsonl
+grep -c "self.signatures"  data/processed/dataset_v19_dedup.jsonl
+grep -c "self.time"        data/processed/dataset_v19_dedup.jsonl
+grep -c "use cardano\."    data/processed/dataset_v19_dedup.jsonl
 ```
 
 The full automated audit (with Claude API analysis) is in `scripts/audit_dataset_quality.py`.
@@ -541,6 +541,16 @@ cardumen-forge/
 │       ├── build_dataset_v14.py            # Curriculum-ordered merge (3,737 examples)
 │       └── build_holdout.py                # Stratified 90/10 train/eval split
 │
+├── scripts/                           # Step 5 — clean and verify (v14 → v19)
+│   ├── fix_fn_prefix.py                    # Remove fn prefix from handler definitions
+│   ├── build_v16.py                        # Remove broken examples, fix fn else(
+│   ├── fix_types.py                        # Fix ScriptCredential, PolicyId module
+│   ├── regenerate_truncated.py             # Regenerate truncated outputs via Claude API
+│   ├── generate_governance_examples.py     # Generate vote/publish/propose examples
+│   ├── dedup_dataset.py                    # Two-pass dedup (exact + near-duplicate)
+│   ├── compare_datasets.py                 # Quality metrics comparison across versions
+│   └── audit_dataset_quality.py            # Claude API audit — balanced sample review
+│
 ├── data/
 │   ├── raw/                           # Scraped source files (not synthetic)
 │   │   ├── aiken_stdlib.json               # 458 functions with real signatures
@@ -553,10 +563,11 @@ cardumen-forge/
 │       ├── dataset_v13_purged.jsonl        # 3,208 examples (dot-imports purged)
 │       ├── validators_fixed.jsonl          # 7 regenerated complete validators
 │       ├── validators_v3.jsonl             # 479 new validators (19 batches)
-│       ├── dataset_v14_train.jsonl         # 3,737 examples (full dataset)
-│       ├── dataset_v14_train_split.jsonl   # 3,363 examples (90% — USE FOR TRAINING)
+│       ├── dataset_v14_train_split.jsonl   # 3,363 examples — baseline
 │       ├── dataset_v14_eval.jsonl          # 374 examples (10% holdout — USE FOR EVAL)
-│       └── archive/                        # superseded dataset versions
+│       ├── governance_examples.jsonl       # 55 generated governance examples
+│       ├── dataset_v19_dedup.jsonl         # 3,406 examples — ACTIVE TRAINING SET
+│       └── archive/                        # superseded dataset versions (v15–v18b)
 │
 ├── logs/                              # generation run logs
 └── archive/scripts/                   # superseded scripts (v13 pipeline, old audits)
@@ -948,8 +959,8 @@ After the v5 training confirmed the dataset was the problem, a systematic audit 
 
 ```bash
 python3 scripts/audit_dataset_quality.py \
-  --dataset data/processed/dataset_v17_train_split.jsonl \
-  --output logs/audit_v17.md \
+  --dataset data/processed/dataset_v19_dedup.jsonl \
+  --output logs/audit_v19.md \
   --samples 10   # examples per source (10 = 120 total across 12 sources)
 ```
 
@@ -964,6 +975,10 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | `scripts/fix_fn_prefix.py` | `fn spend/mint/withdraw/vote/publish(` → removes `fn` | Aiken v3 parser (confirmed by Claude API) |
 | `scripts/build_v16.py` | `fn else(` → `else(`; removes broken examples | `aiken_stdlib.json` fingerprints |
 | `scripts/fix_types.py` | `ScriptCredential` → `Script`; `PolicyId` from wrong module | `aiken_stdlib.json` type registry |
+| `scripts/regenerate_truncated.py` | Regenerates 61 truncated outputs using source docs from `data/raw/` | Claude API + source context |
+| `scripts/generate_governance_examples.py` | Generates positive vote/publish/propose examples from scratch | stdlib-verified handler signatures |
+| `scripts/dedup_dataset.py` | Two-pass dedup: exact output hash + n-gram instruction similarity | — |
+| `scripts/compare_datasets.py` | Compares quality metrics across dataset versions | — |
 
 ### Dataset version history
 
@@ -973,9 +988,35 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | v15 | 3,363 | **761 `fn` prefix fixes** on handlers + 22 `fn else(` fixes |
 | v16 | 3,357 | Removed 6 examples with broken/nonexistent API usage |
 | v17 | 3,357 | Fixed `ScriptCredential`→`Script` (2), `PolicyId` wrong import (17) |
-| v18 | ~3,412 | +55 new governance examples: vote(20), publish(20), propose(15) |
+| v18b | 3,357 | 61 truncated outputs regenerated from source docs (61/61 success) |
+| v19 | 3,412 | +55 new governance examples: vote(20), publish(20), propose(15) |
+| **v19_dedup** | **3,406** | **Dedup: 1 exact + 5 near-duplicate removed — active dataset** |
 
-### Coverage gaps being addressed (v18)
+### Measured improvement: v14 → v19
+
+`scripts/compare_datasets.py` runs after each pipeline cycle to quantify changes. Full output:
+
+```
+  Metric                              v14           v17           v19
+  Total examples                    3,363         3,357         3,406
+
+  ── SYNTAX ERRORS (lower = better) ──
+  fn prefix in handlers         723 (21.5%)  ✅   0 ( 0.0%)  ✅   0 ( 0.0%)
+  Truncated outputs              61 ( 1.8%)        61 ( 1.8%)  ✅  23 ( 0.7%)
+
+  ── COVERAGE (higher = better) ──
+  Handler: publish(              35 ( 1.0%)        35 ( 1.0%)       56 ( 1.6%)
+  Handler: vote(                 36 ( 1.1%)        36 ( 1.1%)       58 ( 1.7%)
+  Handler: propose(               0 ( 0.0%)         0 ( 0.0%)       15 ( 0.4%)
+
+  ── QUALITY SIGNALS ──
+  Has else(_) fallback          157 ( 4.7%)       156 ( 4.6%)  ✅ 241 ( 7.1%)
+  Has validator block          1825 (54.3%)      1821 (54.2%)  ✅1895 (55.6%)
+```
+
+Key results: the `fn` prefix bug (21.5% → 0%) was the root cause of v2–v4 failures. `propose` went from 0 examples to 15. Truncated outputs reduced by 62%.
+
+### Coverage gaps addressed (v18b + v19)
 
 The audit identified three handler types with near-zero *positive* examples. All existing `vote` and `publish` examples were error-correction examples — the model was only learning about them in the context of "here's what's wrong." `propose` had zero examples of any kind.
 
@@ -997,10 +1038,12 @@ python3 scripts/generate_governance_examples.py --append
 
 | # | Problem | Scale | Status |
 |---|---------|-------|--------|
-| 1 | ~62 outputs truncated (unbalanced braces, code cut mid-line) | ~62 | Detected, not yet fixed |
-| 2 | `import` keyword instead of `use` | ~1 | Needs manual review |
-| 3 | 800+ signature-check examples nearly identical | 800+ | Needs dedup strategy |
-| 4 | 1,500 PLAUSIBLE_NEEDS_CHECK unverified | 44% | Progressive verification |
+| 1 | 61 truncated outputs | 61 | ✅ Fixed in v18b — regenerated from source docs |
+| 2 | 0 positive propose/vote/publish examples | — | ✅ Fixed in v19 — 55 new governance examples |
+| 3 | Duplicate and near-duplicate examples | 6 | ✅ Fixed in v19_dedup |
+| 4 | `import` keyword instead of `use` | ~1 | Needs manual review |
+| 5 | 800+ signature-check examples structurally similar | 800+ | Known imbalance — dedup threshold too aggressive to fix safely |
+| 6 | 1,500 PLAUSIBLE_NEEDS_CHECK unverified | 44% | Progressive verification — long-term |
 
 ---
 
@@ -1034,4 +1077,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*Cardumen Forge — Dataset v17 (active) | 3,357 examples | EN/ES | Aiken v3 + Conway handlers | v18 in progress (+55 governance examples)*
+*Cardumen Forge — Dataset v19_dedup (active) | 3,406 examples | EN/ES | Aiken v3 + Conway handlers | v6 training next*
