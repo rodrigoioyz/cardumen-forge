@@ -58,18 +58,20 @@ This project builds a dataset grounded in real documentation to fix those failur
 
 ## Dataset
 
-### Current state (v14 — final)
+### Current state (v17 — active)
 
 | Metric | Value |
 |--------|-------|
-| Total examples (v14 train) | 3,737 |
-| Train split (90%) | 3,363 |
-| Eval/holdout split (10%) | 374 |
-| Languages | EN 63% / ES 37% |
-| Contamination (hallucinated APIs) | 0 |
-| Dot-import contamination purged | 201 (all `aiken_stdlib` / `PLAUSIBLE_NEEDS_CHECK`) |
-| Truly incomplete outputs (no handler) | 7 (fixed in `validators_fixed.jsonl`) |
-| Sources | 8 |
+| Total examples (v17 train) | 3,357 |
+| Languages | EN ~60% / ES ~40% |
+| Sources | 12 |
+| `fn` prefix fixes applied | 783 (761 handlers + 22 `else`) |
+| Broken examples removed | 6 |
+| Wrong constructor names fixed | 2 examples (`ScriptCredential` → `Script`) |
+| Wrong `PolicyId` imports fixed | 17 examples |
+| All fixes verified against | `data/raw/aiken_stdlib.json` |
+
+**Dataset lineage:** v14 → v15 (fn fix) → v16 (broken removed, else fix) → v17 (type fixes)
 
 ### v14 composition (final)
 
@@ -324,10 +326,10 @@ And used `self.signatures`, `self.time`, `self.outputs.all()` — none of which 
 **Root cause:** The dataset had 3,149 examples but only **51 with `fn spend(`**. The generation script showed the handler signature as pseudocode reference without `fn` keyword or `validator {}` wrapper, so the generator never produced complete validators. The model learned field names from prose descriptions but never saw the full syntactic structure as a unit.
 
 **Fix:** Rewrote `generate_complex_validators.py` to:
-1. Show the complete `validator { fn spend(...) { } }` structure explicitly in the system prompt
+1. Show the complete `validator { spend(...) { } }` structure explicitly in the system prompt
 2. Inject real code examples from `aiken_design_patterns.json` as structural reference
 3. Generate 260 validators with verified handler structure (200 spend, 40 mint, 20 withdraw)
-4. Add automated quality check — counts `fn spend(`, `fn mint(`, bad patterns after every run
+4. Add automated quality check — counts `spend(`, `mint(`, bad patterns after every run
 
 ### Problem 2 — System prompt showed signatures without syntax
 
@@ -342,11 +344,13 @@ Without `fn` and without `validator {}`. Claude interpreted this as a type signa
 **Fix:** Changed to show the complete compilable structure:
 ```aiken
 validator my_contract {
-  fn spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool {
+  spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool {
     ...
   }
 }
 ```
+
+> **Note (discovered later):** At this point in the project we believed `fn` was optional inside validator blocks. It is not — it causes a parse error. The v14 dataset still contained ~21.5% examples with `fn` prefix because this wasn't caught until the Claude API audit in the v15 cleaning cycle. See [Dataset quality audit](#dataset-quality-audit-and-cleaning-pipeline-v14--v18).
 
 ### Problem 3 — Synthetic generation without source grounding
 
@@ -368,7 +372,9 @@ validator my_contract {
 
 **Symptom:** An audit script reported 475 examples (13.9%) as "incomplete" — instructions asking for validator code but outputs without a proper handler. Attempts to regenerate them produced 0 successful fixes across dozens of batches.
 
-**Root cause (detection):** The `has_complete_handler()` check searched for `fn spend(` / `fn mint(` / `fn withdraw(` inside a `validator {}` block. However, Aiken v3 allows the `fn` keyword to be omitted inside validator blocks — `spend(...)` is also valid syntax. Most of the 475 flagged examples were using the bare form and were actually correct.
+**Root cause (detection):** The `has_complete_handler()` check searched for `fn spend(` / `fn mint(` / `fn withdraw(` inside a `validator {}` block. At this stage we believed `fn` was optional and `spend(...)` was an alternative form — both appearing in the dataset. Most of the 475 flagged examples were using the bare form and passed the updated check.
+
+> **Correction (discovered in v15 audit):** `fn` inside a validator block is not optional — it causes a parse error. The bare form `spend(...)` is the *only* correct syntax. The dataset at v14 had `fn spend(` in 21.5% of examples, which was actively teaching the model to write uncompilable code. See [Dataset quality audit](#dataset-quality-audit-and-cleaning-pipeline-v14--v18).
 
 **Root cause (regeneration):** Two additional bugs compounded the problem:
 1. Matching regenerated outputs back to originals was done by exact instruction text. Claude consistently paraphrases instructions instead of copying them verbatim, so 100% of batches returned "instruction not found" and were dropped.
@@ -403,12 +409,18 @@ PYTHONUNBUFFERED=1 .venv/bin/python3 -u script.py 2>&1 | tee run.log
 Every dataset version now goes through a fixed audit before training:
 
 ```bash
-grep -c "fn spend("     dataset_v14_train_split.jsonl   # must be > 5% of total
-grep -c "fn mint("      dataset_v14_train_split.jsonl
-grep -c "fn withdraw("  dataset_v14_train_split.jsonl
-grep -c "self.signatures" dataset_v14_train_split.jsonl  # must be 0 (outside corrections)
-grep -c "self.time"       dataset_v14_train_split.jsonl  # must be 0
+# Must be 0 — fn prefix is a parse error in Aiken v3
+grep -c "fn spend("     data/processed/dataset_v17_train_split.jsonl
+grep -c "fn mint("      data/processed/dataset_v17_train_split.jsonl
+grep -c "fn else("      data/processed/dataset_v17_train_split.jsonl
+
+# Must be 0 (outside correction examples)
+grep -c "self.signatures"  data/processed/dataset_v17_train_split.jsonl
+grep -c "self.time"        data/processed/dataset_v17_train_split.jsonl
+grep -c "use cardano\."    data/processed/dataset_v17_train_split.jsonl
 ```
+
+The full automated audit (with Claude API analysis) is in `scripts/audit_dataset_quality.py`.
 
 The `build_dataset_v14.py` script runs this audit automatically and reports coverage percentages with warnings for patterns below 3%.
 
@@ -418,24 +430,27 @@ The `build_dataset_v14.py` script runs this audit automatically and reports cove
 
 ### Verified handler signatures
 
-All six Cardano handler purposes are valid. The `fn` keyword is optional inside validator blocks — both `fn spend(` and bare `spend(` compile.
+All six Cardano handler purposes are valid. The `fn` keyword **must NOT be used** inside validator blocks — the correct syntax uses the handler name directly. The Aiken v3 compiler rejects `fn spend(` with a parse error. This was the single most critical dataset bug: 21.5% of v14 examples used the `fn` prefix.
 
 ```aiken
 validator my_contract {
-  fn spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool {
+  spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool {
     ...
   }
-  fn mint(redeemer: T, policy_id: PolicyId, self: Transaction) -> Bool {
+  mint(redeemer: T, policy_id: PolicyId, self: Transaction) -> Bool {
     ...
   }
-  fn withdraw(redeemer: T, account: Credential, self: Transaction) -> Bool {
+  withdraw(redeemer: T, account: Credential, self: Transaction) -> Bool {
     ...
   }
-  fn publish(redeemer: T, cert: Certificate, self: Transaction) -> Bool {
+  publish(redeemer: T, cert: Certificate, self: Transaction) -> Bool {
     ...
   }
-  fn vote(redeemer: T, voter: Voter, self: Transaction) -> Bool {
+  vote(redeemer: T, voter: Voter, self: Transaction) -> Bool {
     ...
+  }
+  else(_) {
+    fail
   }
 }
 ```
@@ -582,8 +597,8 @@ eval_steps     = 50           # eval every 50 steps, visible individually
 
 The system prompt injected at training time reinforces the critical rules:
 ```
-- fn spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool
-- Always wrap handlers inside validator { } block with fn keyword
+- spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool
+- Always wrap handlers inside validator { } block — NO fn keyword before handler name
 - ADA: assets.lovelace_of(output.value) — NEVER output.assets.ada
 - Signatures: list.has(self.extra_signatories, key) — NEVER self.signatures
 - Time: self.validity_range — NEVER self.time
@@ -848,22 +863,31 @@ shutil.copytree("/content/qwen35_4b_aiken_v14_lora", "/content/drive/MyDrive/car
 
 **v4 (dataset v14) does not improve over v3 (dataset v13).** Both score 13%. The v14 dataset added 529 examples, better coverage, more CORRECTION examples, and a stratified holdout split. None of that translated into benchmark improvement.
 
-### The training steps hypothesis
+### The training steps hypothesis (and why it was wrong)
 
-Two things changed between v1 and all subsequent versions simultaneously:
+The original hypothesis: v1 scored 67% because it trained for ~700 steps; v2–v4 scored 7–13% because they only trained ~300 steps. Two variables changed simultaneously so it was impossible to isolate the cause just from benchmark numbers.
 
-1. Dataset — larger, more PLAUSIBLE examples
-2. Training steps — v1 ran ~700 steps, v2/v3/v4 ran ~300
+**v5 was trained to test this.** Same dataset v14, 7 epochs (~735 steps, matching v1). The loss curve told the story early:
 
-With an effective batch size of 32 and 3,363 training examples:
-- 3 epochs → ~315 steps (what v2/v3/v4 did)
-- 7 epochs → ~735 steps (what v1 did)
+| Step | Train Loss | Val Loss |
+|------|-----------|----------|
+| 50   | 0.4557    | 0.4705   |
+| 100  | 0.4229    | 0.4171   |
+| 200  | 0.3650    | 0.3828   |
+| 300  | 0.2991    | **0.3788** ← best |
+| 400  | 0.1508    | 0.4050   |
 
-At 300 steps the model sees each example roughly 3×. At 700 steps it sees each example 7×. For a niche language where the base model's prior is almost zero, 300 repetitions may simply not be enough for the critical patterns (`extra_signatories`, `validity_range`, handler structure) to consolidate.
+Validation loss bottomed at step ~300 and climbed after. The model was overfitting past that point. Training more steps on v14 wasn't making the model better — it was memorizing noise.
 
-This is the user's hypothesis — and looking at the data, it is more parsimonious than the dataset quality explanation. The benchmark does not let us separate the two variables (both changed at once), but the pattern is consistent: more steps → better score, regardless of dataset version.
+**The real explanation: dataset quality, not steps.** A full Claude API audit of v14 (1,882 examples sampled) found the root cause: **21.5% of examples used `fn spend(` inside validator blocks — syntax the Aiken compiler rejects with a parse error.** The model was being trained on contradictory signal: half the examples wrote `spend(...)`, half wrote `fn spend(...)`. More training only reinforced the confusion.
 
-**v5 is the controlled experiment:** same dataset v14, 7 epochs (~735 steps). If v5 scores significantly above v4, training steps was the key variable. If it doesn't, something else is wrong with the dataset.
+Secondary findings from the audit:
+- ~25% of outputs truncated mid-code (model learns to produce incomplete validators)
+- `ScriptCredential`/`PubKeyCredential` (Plutus v2 names, not valid in Aiken v3) in ~20 examples
+- `PolicyId` imported from `cardano/transaction` instead of `cardano/assets` in ~17 examples
+- 6 examples with completely broken/incoherent code
+
+**v1 won because its dataset was small and coherent, not because it had more steps.** The dataset grew from v1 → v14 by adding more sources, but without systematic quality control on each new batch. Quantity without consistency is worse than less data that all points the same direction.
 
 ### v11 model (dataset v11, 3440 examples) — historical reference
 
@@ -911,6 +935,75 @@ Actions taken:
 
 ---
 
+## Dataset quality audit and cleaning pipeline (v14 → v18)
+
+After the v5 training confirmed the dataset was the problem, a systematic audit and cleaning pipeline was built. Every fix is verified against `data/raw/aiken_stdlib.json` — the ground truth — before touching any example.
+
+### Audit tool
+
+`scripts/audit_dataset_quality.py` uses the Claude API to review a balanced sample of examples across all 12 sources and generates a structured report in `logs/`. It runs two passes:
+
+1. **Automated scan** — regex checks for known anti-patterns in outputs (dot imports, wrong API names, broken code fences, unbalanced braces)
+2. **Claude API review** — sampled examples sent with stdlib ground truth as context; Claude identifies quality issues, coverage gaps, and balance problems
+
+```bash
+python3 scripts/audit_dataset_quality.py \
+  --dataset data/processed/dataset_v17_train_split.jsonl \
+  --output logs/audit_v17.md \
+  --samples 10   # examples per source (10 = 120 total across 12 sources)
+```
+
+**Critical rule:** before acting on any Claude API audit finding, verify it against `data/raw/aiken_stdlib.json`. The first audit incorrectly flagged `assets.reduce`, `assets.restricted_to`, and `assets.flatten` as nonexistent functions — they all exist. The stdlib JSON is authoritative; Claude's knowledge of Aiken is not.
+
+### Cleaning scripts
+
+Each fix is a standalone script with `--dry-run` support. All operate on outputs only (never inputs, which may intentionally show wrong code) and skip correction examples.
+
+| Script | What it fixes | Verified against |
+|--------|--------------|-----------------|
+| `scripts/fix_fn_prefix.py` | `fn spend/mint/withdraw/vote/publish(` → removes `fn` | Aiken v3 parser (confirmed by Claude API) |
+| `scripts/build_v16.py` | `fn else(` → `else(`; removes broken examples | `aiken_stdlib.json` fingerprints |
+| `scripts/fix_types.py` | `ScriptCredential` → `Script`; `PolicyId` from wrong module | `aiken_stdlib.json` type registry |
+
+### Dataset version history
+
+| Version | Examples | Key change |
+|---------|----------|------------|
+| v14 | 3,363 | Original train split — baseline with all quality issues |
+| v15 | 3,363 | **761 `fn` prefix fixes** on handlers + 22 `fn else(` fixes |
+| v16 | 3,357 | Removed 6 examples with broken/nonexistent API usage |
+| v17 | 3,357 | Fixed `ScriptCredential`→`Script` (2), `PolicyId` wrong import (17) |
+| v18 | ~3,412 | +55 new governance examples: vote(20), publish(20), propose(15) |
+
+### Coverage gaps being addressed (v18)
+
+The audit identified three handler types with near-zero *positive* examples. All existing `vote` and `publish` examples were error-correction examples — the model was only learning about them in the context of "here's what's wrong." `propose` had zero examples of any kind.
+
+`scripts/generate_governance_examples.py` generates write-from-scratch examples using:
+- Correct handler signatures from `aiken_stdlib.json`
+- Diverse scenarios (DRep, ConstitutionalCommittee, StakePoolOperator for vote; all Certificate constructors for publish; treasury/parameter/hardfork guardrails for propose)
+- Bilingual (EN/ES ~50/50)
+- `review_status: VERIFIED_V3_ALIGNED` — each output checked before inclusion
+
+```bash
+# Test: generate 2 vote examples and inspect
+python3 scripts/generate_governance_examples.py --handler vote --count 2
+
+# Full run: generate all 55 and append to v17 → v18
+python3 scripts/generate_governance_examples.py --append
+```
+
+### Remaining open issues
+
+| # | Problem | Scale | Status |
+|---|---------|-------|--------|
+| 1 | ~62 outputs truncated (unbalanced braces, code cut mid-line) | ~62 | Detected, not yet fixed |
+| 2 | `import` keyword instead of `use` | ~1 | Needs manual review |
+| 3 | 800+ signature-check examples nearly identical | 800+ | Needs dedup strategy |
+| 4 | 1,500 PLAUSIBLE_NEEDS_CHECK unverified | 44% | Progressive verification |
+
+---
+
 ## Known limitations
 
 - **PLAUSIBLE_NEEDS_CHECK is 44% of training data.** These examples use patterns like `output.address` and `output.datum` that are plausible but not directly verifiable against stdlib signatures. The model may learn some patterns that work in practice but aren't grounded in documentation. Curriculum ordering (placing PLAUSIBLE last) partially mitigates this.
@@ -941,4 +1034,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*Cardumen Forge — Dataset v14 (complete) | 3,737 examples | train: 3,363 / eval: 374 | EN/ES | Aiken v3 + Conway handlers*
+*Cardumen Forge — Dataset v17 (active) | 3,357 examples | EN/ES | Aiken v3 + Conway handlers | v18 in progress (+55 governance examples)*
