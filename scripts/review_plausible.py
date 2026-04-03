@@ -30,7 +30,7 @@ from pathlib import Path
 from collections import defaultdict, Counter
 
 INPUT_PATH  = Path("data/processed/dataset_v19_dedup.jsonl")
-OUTPUT_PATH = Path("data/processed/dataset_v20_reviewed.jsonl")
+OUTPUT_PATH = Path("data/processed/dataset_v22.jsonl")
 REPORT_PATH = Path("logs/review_plausible_report.md")
 STDLIB_PATH = Path("data/raw/aiken_stdlib.json")
 

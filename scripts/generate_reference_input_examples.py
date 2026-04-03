@@ -28,7 +28,7 @@ import anthropic
 STDLIB_PATH  = Path("data/raw/aiken_stdlib.json")
 CIPS_PATH    = Path("data/raw/cips.json")
 OUTPUT_PATH  = Path("data/processed/components/reference_input_examples.jsonl")
-V20_PATH     = Path("data/processed/dataset_v20_reviewed.jsonl")
+V22_PATH     = Path("data/processed/dataset_v22.jsonl")
 
 # ── Load local documentation ──────────────────────────────────────────────────
 
@@ -360,7 +360,7 @@ def main():
     parser.add_argument("--dry-run",       action="store_true", help="Print plan, no API calls")
     parser.add_argument("--write",         action="store_true", help="Save output file")
     parser.add_argument("--append-output", action="store_true", help="Append to component file instead of overwrite")
-    parser.add_argument("--append-to-v20", action="store_true", help="Append to dataset_v20_reviewed.jsonl")
+    parser.add_argument("--append-to-v22", action="store_true", help="Append to dataset_v22.jsonl")
     parser.add_argument("--batches",       type=str, default="all",
                         help="Comma-separated batch indices (0-based) or 'all'")
     args = parser.parse_args()
@@ -436,15 +436,15 @@ def main():
     total_in_file = sum(1 for _ in open(OUTPUT_PATH))
     print(f"\n  ✅ {action} {len(all_good)} examples → {OUTPUT_PATH}  (file total: {total_in_file})")
 
-    # Optionally append to v20
-    if args.append_to_v20:
-        with open(V20_PATH, "a", encoding="utf-8") as f:
+    # Optionally append to v22
+    if args.append_to_v22:
+        with open(V22_PATH, "a", encoding="utf-8") as f:
             for ex in all_good:
                 f.write(json.dumps(ex, ensure_ascii=False) + "\n")
         # Count new total
-        with open(V20_PATH) as f:
+        with open(V22_PATH) as f:
             new_total = sum(1 for l in f if l.strip())
-        print(f"  ✅ Appended to {V20_PATH}  (new total: {new_total:,})")
+        print(f"  ✅ Appended to {V22_PATH}  (new total: {new_total:,})")
 
 
 if __name__ == "__main__":

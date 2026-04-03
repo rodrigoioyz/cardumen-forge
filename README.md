@@ -6,7 +6,19 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 
 **Goal:** Turn a general-purpose code LLM into a domain expert that generates correct, compilable Aiken v3 validators — runnable locally on 6 GB VRAM.
 
-> **Current result:** cardano-dev v5 & v6 — **14/15 (93%)** on the benchmark suite | dataset v20 | 3,319 examples | 66% VERIFIED
+> ## Current State — April 2026
+>
+> | | |
+> |---|---|
+> | **Active model** | cardano-dev v7 (trained) · v8 in training |
+> | **Active dataset** | dataset_v22.jsonl — 3,475 examples · stdlib v3 migrated · 74 new v3-compat examples |
+> | **Benchmark** | 15 heuristic checks + **real `aiken check` compilation** via PTY sandbox (stdlib v3.0.0) |
+> | **v7 heuristic score** | 14/15 (93%) · compile score pending benchmark run |
+> | **v6 compile score** | 10/15 with updated system prompt (pre-v22 dataset) |
+> | **Active scripts** | `benchmark.py`, `colab_finetune.ipynb`, `scripts/migrate_dataset_to_v3.py`, `scripts/generate_v3_compat_examples.py` |
+> | **Aiken stdlib** | v3.0.0 · Plutus v3 |
+>
+> v8 is the first model trained on the fully v3-migrated dataset. Target: >13/15 compile score.
 
 *Cardumen (Spanish): a school of fish — collective movement, no single center, each one navigates but the group has direction. Forge: to build something strong from raw material. Cardumen Forge is about building the tools for anyone to write Cardano smart contracts.*
 
@@ -24,7 +36,7 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
   - [The model](#the-model)
 - [Part II — Quick Start](#part-ii--quick-start)
 - [Part III — The Dataset](#part-iii--the-dataset)
-  - [Current state (v20)](#current-state-v20--active)
+  - [Current state (v22)](#current-state-v22--active)
   - [Sources](#sources)
   - [Schema](#schema)
   - [How the dataset was built](#how-the-dataset-was-built)
@@ -150,7 +162,7 @@ python3 scripts/build/build_holdout.py
 
 ### Step 4 — Fine-tune *(Google Colab)*
 
-1. Upload `data/processed/dataset_v20_reviewed.jsonl` to Colab
+1. Upload `data/processed/dataset_v22.jsonl` to Colab
 2. Run `colab_finetune.ipynb`
 3. Download model from Google Drive and load in LM Studio
 
@@ -175,21 +187,22 @@ python3 benchmark.py --compare-only
 
 ## Part III — The Dataset
 
-### Current state (v20 — active)
+### Current state (v22 — active)
 
 | Metric | Value |
 |--------|-------|
-| Total examples | 3,319 |
+| Total examples | **3,475** |
 | Languages | EN ~60% / ES ~40% |
-| Sources | 12 + generated governance |
+| Sources | 12 + generated governance + v3-compat |
 | `fn` prefix errors | **0** (was 21.5% in v14) |
 | VERIFIED_V3_ALIGNED | **66%** (was 53% in v14) |
 | PLAUSIBLE_NEEDS_CHECK | 32% (was 45% in v14) |
-| Governance handler coverage | vote(58), publish(56), propose(15) (was 36/35/0) |
+| Governance handler coverage | vote(58), publish(56), propose(15) |
 | `else(_)` fallback coverage | 6.4% (was 4.7% in v14) |
+| Banned stdlib v3 patterns | **0** (migrated from v21) |
 | All fixes verified against | `data/raw/aiken_stdlib.json` |
 
-**Dataset lineage:** v14 → v15 (fn fix) → v16 (broken removed) → v17 (type fixes) → v18b (truncated regenerated) → v19 (+ governance) → v19_dedup (dedup) → v20 (PLAUSIBLE reviewed, **active**)
+**Dataset lineage:** v14 → v15 (fn fix) → v16 (broken removed) → v17 (type fixes) → v18b (truncated regenerated) → v19 (+ governance) → v19_dedup (dedup) → v20 (PLAUSIBLE reviewed) → v21 (+ 82 CIP-31 reference_input examples) → **v22 (full stdlib v3 migration + 74 new v3-compat examples, active)**
 
 ---
 
@@ -325,7 +338,7 @@ dataset_v14_train.jsonl  3,737 examples
    generate_governance_examples · dedup · review_plausible
         │
         ▼
-dataset_v20_reviewed.jsonl  3,319 examples  ← ACTIVE TRAINING SET
+dataset_v22.jsonl  3,475 examples  ← ACTIVE TRAINING SET
         │
         ▼
 [Colab QLoRA — unsloth + Qwen3.5-4B]
@@ -711,7 +724,9 @@ All 15 tests also check automatically:
 - `no_dot_imports` — no `use x.y` style imports (True = clean)
 - `wrapped_in_markdown` — informational only; does not affect pass/fail
 
-> **Note on eval methodology:** These checks catch the most common failure modes observed in v11 but are string-based — a model writing `extra_signatories` in a comment but not in actual logic would pass. True validation requires compiling the output with `aiken check`. Manual spot-checking is recommended alongside automated scores.
+> **Note on eval methodology:** These checks catch the most common failure modes observed in v11 but are string-based — a model writing `extra_signatories` in a comment but not in actual logic would pass.
+>
+> **`benchmark.py` now includes real compilation** via `aiken check` on every output, using an isolated sandbox project (`eval/aiken_sandbox/`) with stdlib v3.0.0 and Plutus v3. Each output is written to the sandbox, compiled, and the result reported as `[C:✅]` / `[C:❌]` alongside the heuristic score. Use `--skip-compile` to run heuristic-only. The heuristic score and compile score are tracked independently — a model can pass all 15 string checks but still fail compilation.
 
 ---
 
@@ -821,7 +836,9 @@ Results are saved per model to `eval_results/` and excluded from git (see `.giti
 | cardano-dev v3 | v13 | ~300 | 12/15 | 80% | +13% |
 | cardano-dev v4 | v14 | ~300 | 13/15 | 87% | +7% |
 | cardano-dev v5 | v20 | ~300 (wrong ckpt) | 14/15 | 93% | +7% |
-| **cardano-dev v6** | **v20** | **~200 (best ckpt)** | **14/15** | **93%** | **0%** |
+| cardano-dev v6 | v20 | ~200 (best ckpt) | 14/15 | 93% | 0% · compile 10/15 |
+| cardano-dev v7 | v21 | ~300 (early stop) | 14/15 | 93% | 0% · compile pending |
+| **cardano-dev v8** | **v22** | **in training** | **—** | **—** | **target: >13/15 compile** |
 
 ### By category
 
@@ -1038,14 +1055,14 @@ Every dataset version now goes through a fixed audit before training:
 
 ```bash
 # Must be 0 — fn prefix is a parse error in Aiken v3
-grep -c "fn spend("     data/processed/dataset_v20_reviewed.jsonl
-grep -c "fn mint("      data/processed/dataset_v20_reviewed.jsonl
-grep -c "fn else("      data/processed/dataset_v20_reviewed.jsonl
+grep -c "fn spend("     data/processed/dataset_v22.jsonl
+grep -c "fn mint("      data/processed/dataset_v22.jsonl
+grep -c "fn else("      data/processed/dataset_v22.jsonl
 
 # Must be 0 (outside correction examples)
-grep -c "self.signatures"  data/processed/dataset_v20_reviewed.jsonl
-grep -c "self.time"        data/processed/dataset_v20_reviewed.jsonl
-grep -c "use cardano\."    data/processed/dataset_v20_reviewed.jsonl
+grep -c "self.signatures"  data/processed/dataset_v22.jsonl
+grep -c "self.time"        data/processed/dataset_v22.jsonl
+grep -c "use cardano\."    data/processed/dataset_v22.jsonl
 ```
 
 The full automated audit (with Claude API analysis) is in `scripts/audit_dataset_quality.py`.
@@ -1215,7 +1232,7 @@ cardumen-forge/
 │   │   └── hydra_docs.json                 # 35 Hydra protocol pages
 │   │
 │   └── processed/
-│       ├── dataset_v20_reviewed.jsonl      # 3,319 examples — ACTIVE TRAINING SET
+│       ├── dataset_v22.jsonl               # 3,475 examples — ACTIVE TRAINING SET
 │       ├── dataset_v14_eval.jsonl          # 374 examples — HOLDOUT (do not train on)
 │       ├── components/                     # Building blocks: corrections, validators, governance
 │       └── archive/                        # Superseded dataset versions (v13–v19)
@@ -1229,10 +1246,10 @@ cardumen-forge/
 ## Known Limitations
 
 - **PLAUSIBLE_NEEDS_CHECK is 32% of training data** (down from 44% in v14 after the v20 review pass). These examples use patterns like `output.address` and `output.datum` that are plausible but not directly verifiable against stdlib signatures. The model may learn some patterns that work in practice but aren't grounded in documentation. Curriculum ordering (placing PLAUSIBLE last) partially mitigates this.
-- **Eval checks are string-based.** Passing all 15 tests does not guarantee the output compiles. True validation requires `aiken check`. See the note in the Evaluation suite section.
+- **Heuristic checks are string-based.** Passing all 15 tests does not guarantee the output compiles — a pattern can appear in a comment and pass. The compile score (`aiken check` via `benchmark.py`) is the harder, more reliable signal.
+- **Compile score is on model outputs, not the dataset.** `benchmark.py` compiles what the model generates, not the training examples. Dataset examples were migrated to v3 patterns via regex (`scripts/migrate_dataset_to_v3.py`) but were not individually compiled — some edge cases (inline-commented fields, complex nested types) may have been missed.
 - **Two governance tests out of 15.** `vote` and `publish` handlers were added in v14 but the eval suite only has 2 tests covering them (vs 9 for spend/mint). Coverage asymmetry may hide regressions in governance patterns.
 - **Single model dependency.** All examples were generated by Claude. Systematic gaps in Claude's Aiken knowledge would propagate uniformly across the dataset — there is no cross-model validation.
-- **No compilation-based audit.** The audit pipeline checks API patterns and import style via regex, not by running `aiken check` on every output. Some syntactically invalid examples may have passed through.
 - **Effectiveness tied to training data representation.** As noted in [[1]](#references), LLM-based improvement strategies work best for problems well-represented in pretraining data. Aiken v3 is a niche language — the base model's prior is weak, which is exactly why fine-tuning helps, but also means the model may struggle on patterns not covered in the dataset.
 
 ---
@@ -1256,4 +1273,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*Cardumen Forge — cardano-dev v5/v6 | 14/15 (93%) | dataset v20 | 3,319 examples | 66% VERIFIED | EN/ES | Aiken v3 + Conway handlers*
+*Cardumen Forge — cardano-dev v7 (trained) · v8 in training | heuristic 14/15 (93%) · compile 10/15 (v6 baseline) | dataset v22 | 3,475 examples | stdlib v3 migrated | EN/ES | Aiken v3 + Conway handlers*

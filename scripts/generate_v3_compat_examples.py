@@ -36,7 +36,7 @@ except ImportError:
 ROOT        = Path(__file__).parent.parent
 STDLIB_FILE = ROOT / "data" / "raw" / "aiken_stdlib.json"
 OUTPUT_FILE = ROOT / "data" / "processed" / "components" / "v3_compat_examples.jsonl"
-DATASET_V21 = ROOT / "data" / "processed" / "dataset_v20_reviewed.jsonl"
+DATASET_V22 = ROOT / "data" / "processed" / "dataset_v22.jsonl"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Generation system prompt — strict v3 rules
@@ -422,7 +422,7 @@ def main():
     parser.add_argument("--dry-run",       action="store_true", help="Print batch prompts without calling API")
     parser.add_argument("--write",         action="store_true", help="Write output file")
     parser.add_argument("--append-output", action="store_true", help="Append to existing output file (don't overwrite)")
-    parser.add_argument("--append-to-v21", action="store_true", help="Merge into dataset_v20_reviewed.jsonl (v21→v22)")
+    parser.add_argument("--append-to-v21", action="store_true", help="Merge into dataset_v22.jsonl")
     parser.add_argument("--batches",       nargs="*", type=int, help="Run only these batch IDs")
     args = parser.parse_args()
 
@@ -499,15 +499,15 @@ def main():
     print(f"\nWritten {len(all_examples)} examples → {OUTPUT_FILE}")
 
     if args.append_to_v21:
-        before = sum(1 for _ in DATASET_V21.open(encoding="utf-8"))
-        with DATASET_V21.open("a", encoding="utf-8") as f:
+        before = sum(1 for _ in DATASET_V22.open(encoding="utf-8"))
+        with DATASET_V22.open("a", encoding="utf-8") as f:
             for ex in all_examples:
                 f.write(json.dumps(ex, ensure_ascii=False) + "\n")
-        after = sum(1 for _ in DATASET_V21.open(encoding="utf-8"))
-        print(f"Merged into {DATASET_V21.name}: {before} → {after} examples (+{after - before})")
+        after = sum(1 for _ in DATASET_V22.open(encoding="utf-8"))
+        print(f"Merged into {DATASET_V22.name}: {before} → {after} examples (+{after - before})")
 
         # Coverage report
-        full_text = DATASET_V21.read_text(encoding="utf-8")
+        full_text = DATASET_V22.read_text(encoding="utf-8")
         checks = {
             "commas in types": len(re.findall(r'\w+:\s*\w+,', full_text)),
             "UnregisterCredential": full_text.count("UnregisterCredential"),

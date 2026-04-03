@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 migrate_dataset_to_v3.py — Cardumen Forge
-Migrates dataset_v20_reviewed.jsonl (v21 content) to stdlib v3.0.0 patterns.
+Migrates dataset to stdlib v3.0.0 patterns. Output: dataset_v22.jsonl
 
 Changes applied:
   1. Record field commas   — adds comma after every field in pub type blocks
@@ -24,7 +24,7 @@ from pathlib import Path
 from collections import defaultdict
 
 ROOT       = Path(__file__).parent.parent
-INPUT_FILE = ROOT / "data" / "processed" / "dataset_v20_reviewed.jsonl"
+INPUT_FILE = ROOT / "data" / "processed" / "dataset_v22.jsonl"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fix 1 — Record field commas
