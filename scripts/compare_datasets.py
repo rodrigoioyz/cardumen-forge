@@ -26,10 +26,11 @@ def analyze(path):
     total   = len(data)
 
     # Syntax errors
-    fn_handlers = sum(1 for o in outputs if re.search(r'\bfn\s+(spend|mint|withdraw|publish|vote|else)\s*\(', o))
-    dot_imports = sum(1 for o in outputs if re.search(r'\buse\s+\w+\.', o, re.MULTILINE))
-    wrong_cred  = sum(1 for o in outputs if "ScriptCredential" in o or "PubKeyCredential" in o)
-    wrong_pid   = sum(1 for o in outputs if "cardano/transaction" in o and "PolicyId" in o)
+    fn_handlers    = sum(1 for o in outputs if re.search(r'\bfn\s+(spend|mint|withdraw|publish|vote|else)\s*\(', o))
+    dot_imports    = sum(1 for o in outputs if re.search(r'\buse\s+\w+\.', o, re.MULTILINE))
+    import_keyword = sum(1 for o in outputs if re.search(r'^\s*import\s+\w', o, re.MULTILINE))
+    wrong_cred     = sum(1 for o in outputs if "ScriptCredential" in o or "PubKeyCredential" in o)
+    wrong_pid      = sum(1 for o in outputs if "cardano/transaction" in o and "PolicyId" in o)
 
     # Coverage
     handler_counts = {h: sum(1 for o in outputs if h in o) for h in HANDLERS}
@@ -60,6 +61,7 @@ def analyze(path):
         "total":          total,
         "fn_handlers":    fn_handlers,
         "dot_imports":    dot_imports,
+        "import_keyword": import_keyword,
         "wrong_cred":     wrong_cred,
         "wrong_pid":      wrong_pid,
         "handlers":       handler_counts,
@@ -117,11 +119,12 @@ def main():
     print()
 
     print(f"\n  ── SYNTAX ERRORS (lower = better) ──")
-    row("fn prefix in handlers",      "fn_handlers",  "low")
-    row("Dot-style imports",          "dot_imports",  "low")
-    row("Wrong Credential names",     "wrong_cred",   "low")
-    row("PolicyId wrong module",      "wrong_pid",    "low")
-    row("Truncated outputs",          "truncated",    "low")
+    row("fn prefix in handlers",      "fn_handlers",    "low")
+    row("Dot-style imports (use x.y)","dot_imports",    "low")
+    row("import keyword in output",   "import_keyword", "low")
+    row("Wrong Credential names",     "wrong_cred",     "low")
+    row("PolicyId wrong module",      "wrong_pid",      "low")
+    row("Truncated outputs",          "truncated",      "low")
 
     print(f"\n  ── COVERAGE (higher = better) ──")
     for h in HANDLERS:

@@ -11,7 +11,7 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 > | | |
 > |---|---|
 > | **Active model** | cardano-dev v8 (trained) · v9 next |
-> | **Active dataset** | dataset_v22.jsonl — 3,474 examples · stdlib v3 migrated · compile-verified (correction_set 100%, governance 100%) |
+> | **Active dataset** | dataset_v22.jsonl — 3,473 examples · stdlib v3 migrated · compile-verified (correction_set 100%, governance 100%) |
 > | **Benchmark** | 15 heuristic checks + **real `aiken check` compilation** via PTY sandbox (stdlib v3.0.0) |
 > | **v8 heuristic score** | **15/15 (100%)** — first model to achieve perfect heuristic score |
 > | **v8 compile score** | **10/15 (67%)** · v7 was 9/15 (60%) |
@@ -193,7 +193,7 @@ python3 benchmark.py --compare-only
 
 | Metric | Value |
 |--------|-------|
-| Total examples | **3,474** |
+| Total examples | **3,473** |
 | Languages | EN ~60% / ES ~40% |
 | Sources | 12 + generated governance + v3-compat |
 | `fn` prefix errors | **0** (was 21.5% in v14) |
@@ -414,7 +414,8 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | v20 | 3,319 | 351 PLAUSIBLE promoted to VERIFIED, 87 bad examples removed |
 | v21 | 3,401 | +82 CIP-31 reference input examples (find_input coverage: 41 → 159) |
 | v22 | 3,475 | Full stdlib v3 migration (`migrate_dataset_to_v3.py`): pub type fixes, API renames, auto-imports, cert field renames, strip markdown fences. +74 new v3-compat examples. |
-| **v22 compile-verified** | **3,474** | **Individual compile audit on all examples (`audit_dataset_compile.py`). Failing examples regenerated via Claude API (`regenerate_failing.py`). correction_set 100%, governance 100%. 1 irreparable example removed. Active dataset.** |
+| **v22 compile-verified** | **3,474** | **Individual compile audit on all examples (`audit_dataset_compile.py`). Failing examples regenerated via Claude API (`regenerate_failing.py`). correction_set 100%, governance 100%. 1 irreparable example removed.** |
+| **v22 import-fixed** | **3,473** | **`fix_import_keyword.py`: 42 examples fixed (`import x.y.z` → `use x/y/z`). 1 PyCardano/Python example deleted. Active dataset.** |
 
 #### Coverage gaps addressed (v18b + v19)
 
@@ -543,7 +544,7 @@ Key results of the v22 migration cycle: **markdown fences 497→0** (all strippe
 | 5 | stdlib v2 patterns (wrong imports, old API names) | 200+ | ✅ Fixed in v22 — `migrate_dataset_to_v3.py` (0 banned patterns) |
 | 6 | correction_set compile failures (26.7%) | 39/150 | ✅ Fixed in v22 compile-verify cycle — 100% pass rate |
 | 7 | governance compile failures (1.8%) | 1/54 | ✅ Fixed in v22 compile-verify cycle — 1 example deleted, 100% pass rate |
-| 8 | `import` keyword instead of `use` | ~1 | Needs manual review |
+| 8 | `import` keyword instead of `use` in outputs | 76 | ✅ Fixed 42 via `fix_import_keyword.py` (BLS12-381/math/utility modules). 1 PyCardano example deleted. 33 remaining are `import` in prose text, not Aiken statements. |
 | 9 | Thematic concentration: 814 examples (23.4%) use `extra_signatories` | 814 | Not a dedup problem — `audit_structural_dupes.py` found only 52 true structural duplicates in the full dataset (1.5%). The 814 are diverse validators that happen to check signatures. Fix: add more examples for underrepresented patterns (propose, interval, governance constructors) to rebalance, not dedup. |
 | 10 | 1,052 remaining PLAUSIBLE unverifiable locally | 32% | Need Claude API to verify `output.*` / `self.*` field patterns |
 | 11 | 5 compile failures in v8 benchmark | 5/15 | pub type leak, `MintedValue` removed, `GovernanceCommittee` wrong name, missing interval import — addressable via targeted training data |
