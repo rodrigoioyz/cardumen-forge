@@ -83,13 +83,60 @@ def fix_record_commas(code: str) -> tuple[str, int]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 RENAMES = [
-    # (pattern, replacement, description)
+    # ── stdlib v3 breaking changes ────────────────────────────────────────────
+    # Ref: https://github.com/aiken-lang/stdlib/blob/main/CHANGELOG.md
     (r'\bDeregisterCredential\b',      'UnregisterCredential',   'DeregisterCredential→UnregisterCredential'),
     (r'\bVerificationKeyCredential\b', 'VerificationKey',        'VerificationKeyCredential→VerificationKey'),
     (r'\bScriptCredential\b',          'Script',                 'ScriptCredential→Script'),
     (r'\bMintedValue\b',               'Value',                  'MintedValue→Value'),
     # Interval<X> → Interval (remove generic parameter)
     (r'\bInterval\s*<[^>]+>',          'Interval',               'Interval<T>→Interval'),
+
+    # ── Voter constructors — correct names per stdlib v3 ─────────────────────
+    # Ref: https://github.com/aiken-lang/stdlib/blob/main/lib/cardano/governance.ak
+    # pub type Voter {
+    #   ConstitutionalCommitteeMember(Credential)  ← was ConstitutionalCommittee(
+    #   DelegateRepresentative(Credential)
+    #   StakePool(VerificationKeyHash)             ← was StakePoolOperator(
+    # }
+    #
+    # NOTE: negative lookahead (?!\s*\{) avoids touching the GovernanceAction
+    # constructor `ConstitutionalCommittee { ... }` which is correct as-is.
+    # Covers both usage `ConstitutionalCommittee(` AND imports `ConstitutionalCommittee,`
+    (r'\bConstitutionalCommittee\b(?!\s*\{)', 'ConstitutionalCommitteeMember', 'ConstitutionalCommittee→ConstitutionalCommitteeMember'),
+    # Global rename covers both imports and usage (StakePoolOperator was never valid in v3)
+    (r'\bStakePoolOperator\b',               'StakePool',                     'StakePoolOperator→StakePool'),
+
+    # ── GovernanceAction constructor names — correct per stdlib v3 ────────────
+    # Ref: https://github.com/aiken-lang/stdlib/blob/main/lib/cardano/governance.ak
+    # pub type GovernanceAction {
+    #   ProtocolParameters { ... }   ← LLMs hallucinate as ParameterChange
+    #   HardFork { ... }
+    #   TreasuryWithdrawal { ... }   ← LLMs hallucinate as TreasuryWithdrawals (plural)
+    #   NoConfidence { ... }
+    #   ConstitutionalCommittee { ... }
+    #   NewConstitution { ... }
+    #   NicePoll                     ← LLMs hallucinate as InfoAction
+    # }
+    (r'\bParameterChange\b',      'ProtocolParameters', 'ParameterChange→ProtocolParameters'),
+    (r'\bTreasuryWithdrawals\b',  'TreasuryWithdrawal', 'TreasuryWithdrawals→TreasuryWithdrawal'),
+    (r'\bInfoAction\b',           'NicePoll',           'InfoAction→NicePoll'),
+
+    # ── ProposalProcedure field name ──────────────────────────────────────────
+    # Ref: pub type ProposalProcedure { deposit, return_address, governance_action }
+    # LLMs hallucinate `.value` as the GovernanceAction field name.
+    (r'\bproposal\.value\b', 'proposal.governance_action', 'proposal.value→proposal.governance_action'),
+
+    # ── transaction.Finite / transaction.ValidityRange ────────────────────────
+    # These belong to aiken/interval, not cardano/transaction.
+    # `Finite` is a constructor of IntervalBoundType; `ValidityRange` is `Interval`.
+    (r'\btransaction\.Finite\b',        'Finite',    'transaction.Finite→Finite'),
+    (r'\btransaction\.ValidityRange\b', 'Interval',  'transaction.ValidityRange→Interval'),
+
+    # ── RetireStakePool field names ───────────────────────────────────────────
+    # Ref: RetireStakePool { stake_pool: StakePoolId, at_epoch: Int }
+    # LLMs hallucinate `id` for the pool id field.
+    (r'\bRetireStakePool\s*\{\s*id\b',  'RetireStakePool { stake_pool', 'RetireStakePool.id→stake_pool'),
 ]
 
 
@@ -128,6 +175,77 @@ def fix_time_module(code: str) -> tuple[str, int]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Fix 4 — Make top-level custom types pub
+# ─────────────────────────────────────────────────────────────────────────────
+
+def fix_private_type_leak(code: str) -> tuple[str, int]:
+    """
+    Add 'pub' to top-level type definitions that lack it.
+
+    Validators in Aiken v3 are public, so any type used in a handler signature
+    must also be pub. Lines like:
+        type Foo {          →  pub type Foo {
+        type Bar = Baz      →  pub type Bar = Baz
+
+    Pattern: lines that start exactly with 'type ' (no leading spaces, no
+    preceding 'pub' or 'opaque') are made public. Already-public ('pub type')
+    and opaque types ('opaque type') are left unchanged.
+    """
+    new_code, n = re.subn(r'^type\b', 'pub type', code, flags=re.MULTILINE)
+    return new_code, n
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fix 5 — Certificate record field renames (context-specific)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Constructors where the credential field is NOT named `credential`:
+#   Ref: https://github.com/aiken-lang/stdlib/blob/main/lib/cardano/certificate.ak
+#
+#   DRep certs → `delegate_representative`
+#   CC certs   → `constitutional_committee_member`
+#
+# Note: RegisterCredential / UnregisterCredential / DelegateCredential /
+#       RegisterAndDelegateCredential all correctly use `credential` — leave them alone.
+_CERT_FIELD_RENAMES = [
+    # (constructor, wrong_field, correct_field)
+    ("RegisterDelegateRepresentative",    "credential", "delegate_representative"),
+    ("UnregisterDelegateRepresentative",  "credential", "delegate_representative"),
+    ("UpdateDelegateRepresentative",      "credential", "delegate_representative"),
+    ("AuthorizeConstitutionalCommitteeProxy", "credential", "constitutional_committee_member"),
+    ("RetireFromConstitutionalCommittee", "credential", "constitutional_committee_member"),
+]
+
+def fix_certificate_fields(code: str) -> tuple[str, int]:
+    """
+    For DRep and CC Certificate constructors, rename the `credential` field
+    to its correct name. Uses re.sub with a callback to locate each
+    constructor's record body and rename only within it.
+    """
+    count = 0
+    for constructor, wrong, correct in _CERT_FIELD_RENAMES:
+        # Match the constructor + its record body: Foo { ... }
+        # The body can span multiple lines and contain nested braces up to
+        # depth 1 (record fields don't nest further in these constructors).
+        pat = re.compile(
+            r'\b' + re.escape(constructor) + r'\s*\{([^{}]*)\}',
+            re.DOTALL,
+        )
+
+        def replacer(m, wrong=wrong, correct=correct):
+            body = m.group(1)
+            new_body, n = re.subn(r'\b' + re.escape(wrong) + r'\b', correct, body)
+            replacer.n += n
+            return m.group(0)[:m.group(0).index('{')+1] + new_body + '}'
+
+        replacer.n = 0
+        code = pat.sub(replacer, code)
+        count += replacer.n
+
+    return code, count
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Apply all fixes to one example
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -142,6 +260,8 @@ def migrate_example(ex: dict) -> tuple[dict, dict]:
     output, n_commas    = fix_record_commas(output)
     output, rename_map  = fix_renames(output)
     output, n_time      = fix_time_module(output)
+    output, n_pub       = fix_private_type_leak(output)
+    output, n_cert      = fix_certificate_fields(output)
 
     if n_commas:
         report["commas_added"] = n_commas
@@ -149,6 +269,10 @@ def migrate_example(ex: dict) -> tuple[dict, dict]:
         report.update(rename_map)
     if n_time:
         report["time_module_removed"] = n_time
+    if n_pub:
+        report["type_made_pub"] = n_pub
+    if n_cert:
+        report["cert_field_renamed"] = n_cert
 
     new_ex = {**ex, "output": output}
     return new_ex, report
