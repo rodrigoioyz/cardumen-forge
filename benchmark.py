@@ -607,7 +607,7 @@ def load_all_results(results_dir: Path) -> list:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url",           default=os.environ.get("LM_STUDIO_URL", "http://192.168.208.1:3005"))
+    parser.add_argument("--url",           default=os.environ.get("LM_STUDIO_URL", "http://YOUR_GATEWAY_IP:3005"))
     parser.add_argument("--results-dir",   default="eval_results")
     parser.add_argument("--compare-only",  action="store_true", help="Only show comparison of saved results")
     parser.add_argument("--models",        nargs="*", help="Run only specific version labels (e.g. base v1 v3)")

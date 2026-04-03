@@ -183,7 +183,7 @@ python3 benchmark.py
 python3 benchmark.py --compare-only
 ```
 
-> **WSL / Windows note:** LM Studio runs on Windows. From WSL, the Windows host is not `localhost` — find your gateway IP with `ip route show default` and use that. The default in `benchmark.py` is `http://192.168.208.1:3005`. See [Benchmark setup](#benchmark-setup--usage) for full details.
+> **WSL / Windows note:** LM Studio runs on Windows. From WSL, the Windows host is not `localhost` — find your gateway IP with `ip route show default` and use that. The default in `benchmark.py` is `http://YOUR_GATEWAY_IP:3005`. See [Benchmark setup](#benchmark-setup--usage) for full details.
 
 ---
 
@@ -849,11 +849,11 @@ All 15 tests also check automatically:
 
 **Requires:** LM Studio running with at least one model loaded + `pip install openai`.
 
-**WSL → Windows networking:** LM Studio is a Windows app; its API is not reachable at `localhost` from WSL. The script defaults to `http://192.168.208.1:3005`. To find your actual gateway:
+**WSL → Windows networking:** LM Studio is a Windows app; its API is not reachable at `localhost` from WSL. The script defaults to `http://YOUR_GATEWAY_IP:3005`. To find your actual gateway:
 
 ```bash
 ip route show default
-# → default via 192.168.208.1 dev eth0  ← use this IP
+# → default via YOUR_GATEWAY_IP dev eth0  ← use this IP
 ```
 
 If connections still hang, LM Studio may be bound to `127.0.0.1` only. Enable **"Serve on local network"** in LM Studio's server settings, then add a firewall rule (PowerShell as Admin on Windows):
@@ -864,7 +864,7 @@ New-NetFirewallRule -DisplayName "LM Studio WSL" -Direction Inbound -Protocol TC
 
 Verify with:
 ```bash
-curl http://192.168.208.1:3005/v1/models
+curl http://YOUR_GATEWAY_IP:3005/v1/models
 # Should return JSON listing all loaded models
 ```
 
@@ -874,7 +874,7 @@ curl http://192.168.208.1:3005/v1/models
 python3 benchmark.py
 
 # Custom URL
-python3 benchmark.py --url http://192.168.208.1:3005
+python3 benchmark.py --url http://YOUR_GATEWAY_IP:3005
 
 # Run only specific versions
 python3 benchmark.py --models base v3
@@ -1245,13 +1245,13 @@ Fix: corrected the label to `(dataset v13)`. Sounds minor but matters for the co
 LM Studio shows its API URL as `http://172.19.48.1:3005` in its UI. That IP is the WSL virtual adapter as seen *from Windows* — the reverse direction. From WSL, the Windows host is not at that address.
 
 The fix was two steps:
-1. Find the actual gateway: `ip route show default` → `192.168.208.1`
+1. Find the actual gateway: `ip route show default` → `YOUR_GATEWAY_IP`
 2. Add a Windows Firewall inbound rule for port 3005 (PowerShell as Admin):
    ```powershell
    New-NetFirewallRule -DisplayName "LM Studio WSL" -Direction Inbound -Protocol TCP -LocalPort 3005 -Action Allow
    ```
 
-Verify before every session with `curl http://192.168.208.1:3005/v1/models`. The script default is now set to that address.
+Verify before every session with `curl http://YOUR_GATEWAY_IP:3005/v1/models`. The script default is now set to that address.
 
 ---
 
