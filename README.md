@@ -42,9 +42,11 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
   - [How the dataset was built](#how-the-dataset-was-built)
   - [Pipeline overview](#pipeline-overview)
   - [Cleaning pipeline (v14 → v20)](#cleaning-pipeline-v14--v20)
-  - [Measured improvement](#measured-improvement-v14--v20)
+  - [Measured improvement (v14 → v20)](#measured-improvement-v14--v20)
+  - [Measured improvement (v20 → v22)](#measured-improvement-v20--v22)
   - [Remaining open issues](#remaining-open-issues)
   - [v14 composition — historical baseline](#v14-composition--historical-baseline)
+  - [v22 composition — active dataset](#v22-composition--active-dataset)
 - [Part IV — Training](#part-iv--training)
   - [Config history](#config-history)
   - [Critical lessons learned](#critical-lessons-learned)
@@ -428,7 +430,7 @@ The audit identified three handler types with near-zero *positive* examples. All
 # Test: generate 2 vote examples and inspect
 python3 scripts/generate_governance_examples.py --handler vote --count 2
 
-# Full run: generate all 55 and append to v17 → v18
+# Full run: generate all 55 and append to v18b → v19
 python3 scripts/generate_governance_examples.py --append
 ```
 
@@ -464,6 +466,49 @@ Key results: `fn` prefix (21.5% → 0%) was the root cause of v2–v4 failures. 
 
 ---
 
+### Measured improvement (v20 → v22)
+
+The v20→v22 cycle focused on stdlib v3 compatibility and compile verification rather than example count.
+
+#### v20 → v21 (reference inputs)
+
+`scripts/generate_reference_input_examples.py` generated 82 CIP-31 examples targeting `find_input` patterns.
+
+| Metric | v20 | v21 |
+|--------|-----|-----|
+| Total examples | 3,319 | 3,401 |
+| find_input coverage | 41 | 159 |
+| source: reference_input_examples | 0 | 82 |
+
+#### v21 → v22 (stdlib v3 migration + compile verification)
+
+`scripts/migrate_dataset_to_v3.py` ran an automated migration across the full dataset, followed by `scripts/audit_dataset_compile.py` and `scripts/regenerate_failing.py` to verify and fix every example that fails `aiken check`.
+
+| Metric | v21 | v22 |
+|--------|-----|-----|
+| Total examples | 3,401 | 3,474 |
+| Banned stdlib v3 patterns | ~200+ | **0** |
+| correction_set compile pass rate | ~73% | **100%** |
+| generated_governance_v1 compile pass rate | ~98% | **100%** |
+| v3-compat examples | 0 | 74 |
+| Irreparable examples removed | — | 1 |
+
+**What `migrate_dataset_to_v3.py` changed:**
+- `pub type` fix: all user-defined types used in handler signatures wrapped with `pub`
+- API renames: `assets.lovelace` → `assets.lovelace_of`, removed `assets.restricted_to`
+- Auto-imports: added missing `use cardano/transaction.{OutputReference}`, `use cardano/assets.{PolicyId}` where needed
+- Certificate field renames: `at_epoch` field updates
+- Stripped markdown fences from outputs (model should output raw code, not fenced blocks)
+
+**What `regenerate_failing.py` did:**
+- Compiled every example from `correction_set` and `generated_governance_v1` individually via `aiken check`
+- Sent failing examples (broken code + compiler error) to Claude API for correction
+- 3 retry attempts per example, feeding the latest error back on each retry
+- Replaced failing outputs with verified compilable versions
+- 1 example from `generated_governance_v1` ([3309] — propose validator with complex ProposalProcedure pattern-match) failed all attempts and was deleted
+
+---
+
 ### Remaining open issues
 
 | # | Problem | Scale | Status |
@@ -472,9 +517,13 @@ Key results: `fn` prefix (21.5% → 0%) was the root cause of v2–v4 failures. 
 | 2 | 0 positive propose/vote/publish examples | — | ✅ Fixed in v19 — 55 new governance examples |
 | 3 | Duplicate and near-duplicate examples | 6 | ✅ Fixed in v19_dedup |
 | 4 | 1,490 PLAUSIBLE_NEEDS_CHECK unverified | 44% | ✅ Fixed in v20 — 351 promoted, 87 removed, 1,052 remain |
-| 5 | `import` keyword instead of `use` | ~1 | Needs manual review |
-| 6 | 800+ signature-check examples structurally similar | 800+ | Known imbalance — dedup threshold too aggressive to fix safely |
-| 7 | 1,052 remaining PLAUSIBLE unverifiable locally | 32% | Need Claude API to verify `output.*` / `self.*` field patterns |
+| 5 | stdlib v2 patterns (wrong imports, old API names) | 200+ | ✅ Fixed in v22 — `migrate_dataset_to_v3.py` (0 banned patterns) |
+| 6 | correction_set compile failures (26.7%) | 39/150 | ✅ Fixed in v22 compile-verify cycle — 100% pass rate |
+| 7 | governance compile failures (1.8%) | 1/54 | ✅ Fixed in v22 compile-verify cycle — 1 example deleted, 100% pass rate |
+| 8 | `import` keyword instead of `use` | ~1 | Needs manual review |
+| 9 | 800+ signature-check examples structurally similar | 800+ | Known imbalance — dedup threshold too aggressive to fix safely |
+| 10 | 1,052 remaining PLAUSIBLE unverifiable locally | 32% | Need Claude API to verify `output.*` / `self.*` field patterns |
+| 11 | 5 compile failures in v8 benchmark | 5/15 | pub type leak, `MintedValue` removed, `GovernanceCommittee` wrong name, missing interval import — addressable via targeted training data |
 
 ---
 
@@ -525,6 +574,28 @@ Key results: `fn` prefix (21.5% → 0%) was the root cause of v2–v4 failures. 
 | `rational.compare` / `rational.new` | ~5 | 30+ |
 | complex mint redeemers | ~15 | 40+ |
 | CORRECTION examples | 37 | 87 |
+
+---
+
+### v22 composition — active dataset
+
+| Source | Examples | Notes |
+|--------|----------|-------|
+| `aiken_stdlib` | 1,310 | Q&A grounded in real stdlib signatures |
+| `cips` | 506 | CIPs — Ledger/Plutus/Tokens/Metadata |
+| `aiken_docs` | 347 | Language concepts, syntax, type system |
+| `aiken_design_patterns` | 176 | Production patterns (Anastasia-Labs, stdlib v3 compatible) |
+| `aiken_v3_curated_v2` | 436 | Complex validators: all handlers, reference inputs, governance |
+| `correction_set` | 150 | v3 error corrections. **100% compile-verified.** |
+| `correction_set_v2` | 48 | Conway-era handler error corrections |
+| `generated_governance_v1` | 54 | vote/publish/propose. **100% compile-verified.** |
+| `reference_input_examples` | 82 | CIP-31 reference input patterns |
+| `v3_compat_examples` | 74 | v3-compatibility examples added in v22 |
+| `hydra_docs` | 60 | Hydra Head protocol |
+| *(misc/other)* | ~231 | Remaining examples across small sources |
+| **Total** | **3,474** | — |
+
+**Status distribution:** VERIFIED_V3_ALIGNED 66% / PLAUSIBLE_NEEDS_CHECK 32% / CORRECTION ~2%
 
 ---
 
@@ -816,17 +887,17 @@ Results are saved per model to `eval_results/` and excluded from git (see `.giti
 
   Model                                  Pass    Score       Δ
   ────────────────────────────────────────────────────────────
-  qwen2.5-coder-7b (base, no fine-tune)   2/15      13%
-  cardano-dev v1                          6/15      40%     +27%  ████
-  cardano-dev v2 (dataset v13)            9/15      60%     +20%  ████████
-  cardano-dev v3 (dataset v14)           13/15      87%     +27%  ████████████
+  qwen2.5-coder-7b (base, no fine-tune)   0/15       0%
+  cardano-dev v1                         11/15      73%     +73%  ████████████
+  cardano-dev v2 (dataset v13)           10/15      67%      −7%  ████████████
+  cardano-dev v3 (dataset v13)           12/15      80%     +13%  ████████████████
 
   Category                  qwen2.5-coder-7b  cardano-dev v1  ...
   ──────────────────────────────────────────────────────────────
   mint                          0/2 (0%)        1/2 (50%)  ...
-  publish                       0/1 (0%)        0/1 (0%)   ...
-  spend                         2/9 (22%)       4/9 (44%)  ...
-  vote                          0/1 (0%)        0/1 (0%)   ...
+  publish                       0/1 (0%)        1/1 (100%) ...
+  spend                         0/9 (0%)        5/9 (56%)  ...
+  vote                          0/1 (0%)        1/1 (100%) ...
   withdraw                      0/1 (0%)        1/1 (100%) ...
 ══════════════════════════════════════════════════════════════════════
 ```
@@ -868,7 +939,7 @@ v8 is the first model to pass all 15 heuristic checks. Previous versions (v6–v
 | vote | 0% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
 | withdraw | 0% | 0% | 100% | 0% | 100% | 100% | 100% | 100% | 100% | 100% |
 
-Consistent failure across all versions: `spend_reference_input` — requires `reference_inputs` + `find_input` together, only 72 examples in the dataset (lowest coverage of any tested pattern). Even gemma-4-e4b base fails it.
+Consistent failure in v1–v7: `spend_reference_input` — requires `reference_inputs` + `find_input` together, only 72 examples in the dataset (lowest coverage of any tested pattern). Even gemma-4-e4b base fails it. **v8 is the first model to pass this test**, contributing to its 15/15 sweep of the spend category.
 
 ---
 
@@ -882,9 +953,13 @@ Consistent failure across all versions: `spend_reference_input` — requires `re
 
 **Dataset quality drives a clear, gradual improvement:** v2 (v13, 67%) → v3 (v13 run2, 80%) → v4 (v14, 87%) → v5/v6 (v20, 93%). Each dataset improvement produced a measurable gain. The jump to v20 (+6%) came from eliminating the 21.5% `fn` prefix contamination and promoting 351 PLAUSIBLE examples to VERIFIED.
 
+**v7 (dataset v21) ties v6 at 93% heuristic but shows a slight compile regression: 9/15 vs v6's 10/15.** The v21 dataset added 82 CIP-31 reference input examples — good coverage addition — but the net effect on compilation quality was neutral to slightly negative. The likely cause: reference input examples used `find_input` patterns not yet fully compile-verified.
+
+**v8 (dataset v22) is the first model to achieve 15/15 (100%) heuristic**, breaking the ceiling that v5–v7 had all hit at 14/15. The final failing test was `spend_nft_gate` (requires `has_nft` without `output.assets.ada`) — resolved by the full stdlib v3 migration in v22. Compile score also recovered to 10/15 (67%), matching v6's best. The v22 dataset was the first to be individually compile-verified via `aiken check` on every example.
+
 **gemma-4-e4b base scores 33% without fine-tuning** — it has real Aiken v3 knowledge from pretraining (passes vote, publish, import_style correctly). qwen2.5-coder-7b base scores 0% because it doesn't generate `use x/y` style imports at all — it defaults to Python-like imports or omits them entirely.
 
-**The only persistent failure across all fine-tuned versions** is `spend_reference_input` — the test requires both `reference_inputs` and `find_input` in the output, and the pattern has only 72 examples in the dataset. This is a coverage problem, not a syntax problem.
+**`spend_reference_input` was the persistent failure across v1–v7** — the test requires both `reference_inputs` and `find_input` in the output, and the pattern has only 72 examples in the dataset. v8 finally passes it, completing a 15/15 heuristic sweep. The remaining challenge is compile quality: 5 of 15 tests still fail `aiken check` (pub type leak, removed constructors, missing interval import). These are coverage gaps addressable via targeted training data.
 
 ---
 
