@@ -102,13 +102,20 @@ CUSTOM TYPES — commas required after EVERY field (stdlib v3):
 
 IMPORTS (slash style — never dot, imports must come first):
   use cardano/assets
-  use cardano/transaction.{Transaction, OutputReference, InlineDatum}
+  use cardano/transaction.{Transaction, OutputReference}
   use cardano/certificate.{Certificate}
   use cardano/governance.{Voter, ProposalProcedure}
   use aiken/collection/list
   use aiken/collection/dict
   use aiken/interval
   use aiken/math/rational
+
+IMPORT RULES — always include these when using the types:
+  Transaction, OutputReference → use cardano/transaction.{Transaction, OutputReference}
+  InlineDatum                  → add to transaction import: .{Transaction, OutputReference, InlineDatum}
+  PolicyId                     → use cardano/assets.{PolicyId}  OR prefix as assets.PolicyId
+  Certificate                  → use cardano/certificate.{Certificate}
+  Voter, ProposalProcedure     → use cardano/governance.{Voter, ProposalProcedure}
 
 VERIFIED API PATTERNS:
   ADA check  : assets.lovelace_of(output.value) — NEVER output.assets.ada
