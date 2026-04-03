@@ -349,6 +349,19 @@ def validate_example(ex: dict) -> list[str]:
         if "use aiken/interval" not in code:
             errors.append("bad: interval.* used without 'use aiken/interval'")
 
+    # Always-required imports when types are used
+    if re.search(r'\bTransaction\b', code):
+        if "cardano/transaction" not in code:
+            errors.append("bad: Transaction used but cardano/transaction not imported")
+    if re.search(r'\bOutputReference\b', code):
+        if "cardano/transaction" not in code:
+            errors.append("bad: OutputReference used but cardano/transaction not imported")
+    if re.search(r'\bPolicyId\b', code):
+        has_assets_import = "cardano/assets" in code
+        has_policyid_qualified = re.search(r'assets\.PolicyId', code)
+        if not has_assets_import and not has_policyid_qualified:
+            errors.append("bad: PolicyId used but cardano/assets not imported")
+
     return errors
 
 
