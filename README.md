@@ -544,7 +544,7 @@ Key results of the v22 migration cycle: **markdown fences 497→0** (all strippe
 | 6 | correction_set compile failures (26.7%) | 39/150 | ✅ Fixed in v22 compile-verify cycle — 100% pass rate |
 | 7 | governance compile failures (1.8%) | 1/54 | ✅ Fixed in v22 compile-verify cycle — 1 example deleted, 100% pass rate |
 | 8 | `import` keyword instead of `use` | ~1 | Needs manual review |
-| 9 | 800+ signature-check examples structurally similar | 800+ | Known imbalance — dedup threshold too aggressive to fix safely |
+| 9 | Thematic concentration: 814 examples (23.4%) use `extra_signatories` | 814 | Not a dedup problem — `audit_structural_dupes.py` found only 52 true structural duplicates in the full dataset (1.5%). The 814 are diverse validators that happen to check signatures. Fix: add more examples for underrepresented patterns (propose, interval, governance constructors) to rebalance, not dedup. |
 | 10 | 1,052 remaining PLAUSIBLE unverifiable locally | 32% | Need Claude API to verify `output.*` / `self.*` field patterns |
 | 11 | 5 compile failures in v8 benchmark | 5/15 | pub type leak, `MintedValue` removed, `GovernanceCommittee` wrong name, missing interval import — addressable via targeted training data |
 
