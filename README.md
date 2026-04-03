@@ -386,7 +386,8 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | v18b | 3,357 | 61 truncated outputs regenerated from source docs (61/61 success) |
 | v19 | 3,412 | +55 new governance examples: vote(20), publish(20), propose(15) |
 | v19_dedup | 3,406 | Dedup: 1 exact + 5 near-duplicate removed |
-| **v20** | **3,319** | **351 PLAUSIBLE promoted to VERIFIED, 87 bad examples removed — active dataset** |
+| v20 | 3,319 | 351 PLAUSIBLE promoted to VERIFIED, 87 bad examples removed |
+| **v21** | **3,401** | **+82 CIP-31 reference input examples (find_input coverage: 41 → 159) — active dataset** |
 
 #### Coverage gaps addressed (v18b + v19)
 
