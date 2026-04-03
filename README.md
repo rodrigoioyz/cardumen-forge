@@ -58,20 +58,21 @@ This project builds a dataset grounded in real documentation to fix those failur
 
 ## Dataset
 
-### Current state (v19_dedup — active)
+### Current state (v20 — active)
 
 | Metric | Value |
 |--------|-------|
-| Total examples (v19 dedup) | 3,406 |
+| Total examples | 3,319 |
 | Languages | EN ~60% / ES ~40% |
 | Sources | 12 + generated governance |
 | `fn` prefix errors | **0** (was 21.5% in v14) |
-| Truncated outputs | 23 heuristic false positives (was 61 in v14) |
+| VERIFIED_V3_ALIGNED | **66%** (was 53% in v14) |
+| PLAUSIBLE_NEEDS_CHECK | 32% (was 45% in v14) |
 | Governance handler coverage | vote(58), publish(56), propose(15) (was 36/35/0) |
-| `else(_)` fallback coverage | 7.1% (was 4.7% in v14) |
+| `else(_)` fallback coverage | 6.4% (was 4.7% in v14) |
 | All fixes verified against | `data/raw/aiken_stdlib.json` |
 
-**Dataset lineage:** v14 → v15 (fn fix) → v16 (broken removed) → v17 (type fixes) → v18b (truncated regenerated) → v19 (+ governance) → v19_dedup (dedup, **active**)
+**Dataset lineage:** v14 → v15 (fn fix) → v16 (broken removed) → v17 (type fixes) → v18b (truncated regenerated) → v19 (+ governance) → v19_dedup (dedup) → v20 (PLAUSIBLE reviewed, **active**)
 
 ### v14 composition (final)
 
@@ -549,6 +550,7 @@ cardumen-forge/
 │   ├── generate_governance_examples.py     # Generate vote/publish/propose examples
 │   ├── dedup_dataset.py                    # Two-pass dedup (exact + near-duplicate)
 │   ├── compare_datasets.py                 # Quality metrics comparison across versions
+│   ├── review_plausible.py                 # Promote/remove PLAUSIBLE via local stdlib check
 │   └── audit_dataset_quality.py            # Claude API audit — balanced sample review
 │
 ├── data/
@@ -566,7 +568,8 @@ cardumen-forge/
 │       ├── dataset_v14_train_split.jsonl   # 3,363 examples — baseline
 │       ├── dataset_v14_eval.jsonl          # 374 examples (10% holdout — USE FOR EVAL)
 │       ├── governance_examples.jsonl       # 55 generated governance examples
-│       ├── dataset_v19_dedup.jsonl         # 3,406 examples — ACTIVE TRAINING SET
+│       ├── dataset_v19_dedup.jsonl         # 3,406 examples (superseded by v20)
+│       ├── dataset_v20_reviewed.jsonl      # 3,319 examples — ACTIVE TRAINING SET
 │       └── archive/                        # superseded dataset versions (v15–v18b)
 │
 ├── logs/                              # generation run logs
@@ -990,31 +993,36 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | v17 | 3,357 | Fixed `ScriptCredential`→`Script` (2), `PolicyId` wrong import (17) |
 | v18b | 3,357 | 61 truncated outputs regenerated from source docs (61/61 success) |
 | v19 | 3,412 | +55 new governance examples: vote(20), publish(20), propose(15) |
-| **v19_dedup** | **3,406** | **Dedup: 1 exact + 5 near-duplicate removed — active dataset** |
+| v19_dedup | 3,406 | Dedup: 1 exact + 5 near-duplicate removed |
+| **v20** | **3,319** | **351 PLAUSIBLE promoted to VERIFIED, 87 bad examples removed — active dataset** |
 
 ### Measured improvement: v14 → v19
 
 `scripts/compare_datasets.py` runs after each pipeline cycle to quantify changes. Full output:
 
 ```
-  Metric                              v14           v17           v19
-  Total examples                    3,363         3,357         3,406
+  Metric                              v14           v19           v20
+  Total examples                    3,363         3,406         3,319
 
   ── SYNTAX ERRORS (lower = better) ──
   fn prefix in handlers         723 (21.5%)  ✅   0 ( 0.0%)  ✅   0 ( 0.0%)
-  Truncated outputs              61 ( 1.8%)        61 ( 1.8%)  ✅  23 ( 0.7%)
+  PolicyId wrong module         438 (13.0%)      446 (13.1%)  ✅ 364 (11.0%)
+  Truncated outputs              61 ( 1.8%)  ✅  23 ( 0.7%)  ✅  19 ( 0.6%)
 
   ── COVERAGE (higher = better) ──
-  Handler: publish(              35 ( 1.0%)        35 ( 1.0%)       56 ( 1.6%)
-  Handler: vote(                 36 ( 1.1%)        36 ( 1.1%)       58 ( 1.7%)
-  Handler: propose(               0 ( 0.0%)         0 ( 0.0%)       15 ( 0.4%)
+  Handler: publish(              35 ( 1.0%)        56 ( 1.6%)       56 ( 1.7%)
+  Handler: vote(                 36 ( 1.1%)        58 ( 1.7%)       58 ( 1.7%)
+  Handler: propose(               0 ( 0.0%)        15 ( 0.4%)       15 ( 0.5%)
 
   ── QUALITY SIGNALS ──
-  Has else(_) fallback          157 ( 4.7%)       156 ( 4.6%)  ✅ 241 ( 7.1%)
-  Has validator block          1825 (54.3%)      1821 (54.2%)  ✅1895 (55.6%)
+  Has else(_) fallback          157 ( 4.7%)  ✅  241 ( 7.1%)  ✅  212 ( 6.4%)
+
+  ── STATUS DISTRIBUTION ──
+  VERIFIED_V3_ALIGNED          1785 (53.1%)     1838 (54.0%)  ✅2189 (66.0%)
+  PLAUSIBLE_NEEDS_CHECK        1500 (44.6%)     1490 (43.7%)  ✅1052 (31.7%)
 ```
 
-Key results: the `fn` prefix bug (21.5% → 0%) was the root cause of v2–v4 failures. `propose` went from 0 examples to 15. Truncated outputs reduced by 62%.
+Key results: `fn` prefix (21.5% → 0%) was the root cause of v2–v4 failures. VERIFIED ratio jumped from 53% → 66% after PLAUSIBLE review. `propose` went from 0 to 15 examples.
 
 ### Coverage gaps addressed (v18b + v19)
 
@@ -1041,9 +1049,10 @@ python3 scripts/generate_governance_examples.py --append
 | 1 | 61 truncated outputs | 61 | ✅ Fixed in v18b — regenerated from source docs |
 | 2 | 0 positive propose/vote/publish examples | — | ✅ Fixed in v19 — 55 new governance examples |
 | 3 | Duplicate and near-duplicate examples | 6 | ✅ Fixed in v19_dedup |
-| 4 | `import` keyword instead of `use` | ~1 | Needs manual review |
-| 5 | 800+ signature-check examples structurally similar | 800+ | Known imbalance — dedup threshold too aggressive to fix safely |
-| 6 | 1,500 PLAUSIBLE_NEEDS_CHECK unverified | 44% | Progressive verification — long-term |
+| 4 | 1,490 PLAUSIBLE_NEEDS_CHECK unverified | 44% | ✅ Fixed in v20 — 351 promoted, 87 removed, 1,052 remain |
+| 5 | `import` keyword instead of `use` | ~1 | Needs manual review |
+| 6 | 800+ signature-check examples structurally similar | 800+ | Known imbalance — dedup threshold too aggressive to fix safely |
+| 7 | 1,052 remaining PLAUSIBLE unverifiable locally | 32% | Need Claude API to verify `output.*` / `self.*` field patterns |
 
 ---
 
@@ -1077,4 +1086,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*Cardumen Forge — Dataset v19_dedup (active) | 3,406 examples | EN/ES | Aiken v3 + Conway handlers | v6 training next*
+*Cardumen Forge — Dataset v20 (active) | 3,319 examples | 66% VERIFIED | EN/ES | Aiken v3 + Conway handlers | v6 training next*

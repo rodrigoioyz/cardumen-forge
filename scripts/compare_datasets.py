@@ -11,8 +11,8 @@ from collections import Counter
 
 DATASETS = [
     ("v14",  "data/processed/dataset_v14_train_split.jsonl"),
-    ("v17",  "data/processed/dataset_v17_train_split.jsonl"),
     ("v19",  "data/processed/dataset_v19_dedup.jsonl"),
+    ("v20",  "data/processed/dataset_v20_reviewed.jsonl"),
 ]
 
 HANDLERS = ["spend(", "mint(", "withdraw(", "publish(", "vote(", "propose("]
