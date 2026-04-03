@@ -19,6 +19,7 @@ import sys
 import json
 import re
 import argparse
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
@@ -31,6 +32,11 @@ MODELS = [
         "label":       "qwen2.5-coder-7b (base)",
         "lm_name":     "qwen2.5-coder-7b-instruct",
         "version":     "base",
+    },
+    {
+        "label":       "gemma-4-e4b (base)",
+        "lm_name":     "google_gemma-4-e4b-it",
+        "version":     "gemma4",
     },
     {
         "label":       "cardano-dev v1",
@@ -52,17 +58,60 @@ MODELS = [
         "lm_name":     "lmstudio-community/aiken_expert/cardano-dev 4.0 qwen3.5-4b.q4_k_m (3).gguf",
         "version":     "v4",
     },
+    {
+        "label":       "cardano-dev v5 (dataset v20, wrong ckpt)",
+        "lm_name":     "lmstudio-community/aiken_expert/cardano-dev 5.0  qwen3.5-4b.q4_k_m.gguf",
+        "version":     "v5",
+    },
+    {
+        "label":       "cardano-dev v6 (dataset v20, best ckpt)",
+        "lm_name":     "lmstudio-community/aiken_expert/cardano-dev-6.0-v20-q4_k_m.gguf",
+        "version":     "v6",
+    },
+    {
+        "label":       "cardano-dev v7 (dataset v21, best ckpt)",
+        "lm_name":     "lmstudio-community/aiken_expert/cardano-dev-7.0-v21-q4_k_m.gguf",
+        "version":     "v7",
+    },
 ]
 
 RESULTS_DIR = Path("eval_results")
 TEMPERATURE = 0.1
 
 SYSTEM_PROMPT = """\
-You are an expert Aiken v3 smart contract engineer.
-Generate complete, compilable Aiken v3 validators.
-Always use slash-style imports (use cardano/assets, not use cardano.assets).
-Always wrap handlers inside a validator { } block.
-"""
+You are an expert Aiken v3 smart contract engineer for the Cardano blockchain.
+You write correct, compilable Aiken v3 validators using only verified APIs.
+
+CRITICAL — handler syntax inside validator blocks (NO fn keyword before handler name):
+  validator my_contract {
+    spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool { ... }
+    mint(redeemer: T, policy_id: PolicyId, self: Transaction) -> Bool { ... }
+    withdraw(redeemer: T, account: Credential, self: Transaction) -> Bool { ... }
+    publish(redeemer: T, cert: Certificate, self: Transaction) -> Bool { ... }
+    vote(redeemer: T, voter: Voter, self: Transaction) -> Bool { ... }
+    propose(redeemer: T, proposal: ProposalProcedure, self: Transaction) -> Bool { ... }
+    else(_) { fail }
+  }
+
+IMPORTS (slash style — never dot):
+  use cardano/assets
+  use cardano/transaction.{Transaction, OutputReference}
+  use cardano/certificate.{Certificate}
+  use cardano/governance.{Voter, ProposalProcedure}
+  use aiken/collection/list
+  use aiken/collection/dict
+  use aiken/interval
+  use aiken/math/rational
+
+VERIFIED API PATTERNS:
+  ADA check  : assets.lovelace_of(output.value) — NEVER output.assets.ada
+  Signatures : list.has(self.extra_signatories, key) — NEVER self.signatures
+  Time       : self.validity_range — NEVER self.time
+  NFT check  : assets.quantity_of(value, policy_id, asset_name)
+  Inputs     : transaction.find_input(self.inputs, ref)
+  Ref inputs : transaction.find_input(self.reference_inputs, ref)
+  dict       : dict.to_pairs(d) — NEVER dict.to_list
+  rational   : rational.new(n, d)"""
 
 TEST_SUITE = [
     {
@@ -174,6 +223,49 @@ TEST_SUITE = [
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Aiken compile sandbox
+# ─────────────────────────────────────────────────────────────────────────────
+
+SANDBOX_DIR       = Path(__file__).parent / "eval" / "aiken_sandbox"
+SANDBOX_VALIDATOR = SANDBOX_DIR / "validators" / "output.ak"
+
+
+def compile_check(code: str) -> dict:
+    """
+    Write code to sandbox validator slot and run `aiken check`.
+    Returns {"pass": bool|None, "skipped": bool, "error": str}.
+
+    Prerequisites (one-time setup):
+        cd ~/entrenamiento
+        aiken new eval/aiken_sandbox
+        aiken check --project eval/aiken_sandbox   # downloads stdlib
+    """
+    if not (SANDBOX_DIR / "aiken.toml").exists():
+        return {"pass": None, "skipped": True, "error": "sandbox not found — run: aiken new eval/aiken_sandbox"}
+
+    SANDBOX_VALIDATOR.parent.mkdir(parents=True, exist_ok=True)
+    SANDBOX_VALIDATOR.write_text(code, encoding="utf-8")
+
+    try:
+        r = subprocess.run(
+            ["aiken", "check"],
+            cwd=SANDBOX_DIR,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        return {
+            "pass":    r.returncode == 0,
+            "skipped": False,
+            "error":   r.stderr.strip() if r.returncode != 0 else "",
+        }
+    except FileNotFoundError:
+        return {"pass": None, "skipped": True, "error": "aiken not in PATH"}
+    except subprocess.TimeoutExpired:
+        return {"pass": None, "skipped": True, "error": "timeout (60s)"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Checks
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -213,9 +305,11 @@ def run_checks(output: str, must_contain: list, must_not_contain: list) -> dict:
 # Single model eval
 # ─────────────────────────────────────────────────────────────────────────────
 
-def eval_model(client, model_name: str, label: str) -> dict:
+def eval_model(client, model_name: str, label: str, skip_compile: bool = False) -> dict:
     results = []
     passed = 0
+    compiled = 0
+    compile_skipped = False
 
     for i, test in enumerate(TEST_SUITE):
         print(f"  [{i+1:02d}/{len(TEST_SUITE)}] {test['id']}...", end=" ", flush=True)
@@ -232,15 +326,31 @@ def eval_model(client, model_name: str, label: str) -> dict:
             output = resp.choices[0].message.content.strip()
         except Exception as e:
             print(f"ERROR: {e}")
-            results.append({**test, "output": "", "checks": {}, "error": str(e)})
+            results.append({**test, "output": "", "checks": {}, "compile": {}, "error": str(e)})
             continue
 
         checks = run_checks(output, test["must_contain"], test["must_not_contain"])
+
+        compile = {"pass": None, "skipped": True, "error": "skipped"}
+        if not skip_compile:
+            code = strip_markdown(output)
+            compile = compile_check(code)
+            if compile["skipped"]:
+                compile_skipped = True
+            elif compile["pass"]:
+                compiled += 1
+
         status = "✅" if checks["pass"] else "❌"
-        print(status)
+        compile_tag = ""
+        if not skip_compile and not compile["skipped"]:
+            compile_tag = " [C:✅]" if compile["pass"] else " [C:❌]"
+        print(status + compile_tag)
+
         if not checks["pass"]:
             failed = [k for k, v in checks.items() if not v and k != "pass"]
             print(f"         ↳ failed: {failed}")
+        if not skip_compile and not compile["skipped"] and not compile["pass"]:
+            print(f"         ↳ compile error: {compile['error'][:120]}")
         if checks["pass"]:
             passed += 1
 
@@ -250,6 +360,7 @@ def eval_model(client, model_name: str, label: str) -> dict:
             "prompt":   test["prompt"],
             "output":   output,
             "checks":   checks,
+            "compile":  compile,
         })
 
     by_category = {}
@@ -263,15 +374,19 @@ def eval_model(client, model_name: str, label: str) -> dict:
         p = by_category[cat]
         p["pass_rate"] = 100 * p["passed"] / max(1, p["total"])
 
-    pass_rate = 100 * passed / max(1, len(TEST_SUITE))
+    pass_rate    = 100 * passed   / max(1, len(TEST_SUITE))
+    compile_rate = 100 * compiled / max(1, len(TEST_SUITE))
     return {
-        "label":    label,
-        "model":    model_name,
-        "passed":   passed,
-        "total":    len(TEST_SUITE),
-        "pass_rate": pass_rate,
-        "by_category": by_category,
-        "results":  results,
+        "label":         label,
+        "model":         model_name,
+        "passed":        passed,
+        "total":         len(TEST_SUITE),
+        "pass_rate":     pass_rate,
+        "compiled":      compiled,
+        "compile_rate":  compile_rate,
+        "compile_skipped": compile_skipped,
+        "by_category":   by_category,
+        "results":       results,
     }
 
 
@@ -343,8 +458,8 @@ def print_comparison(summaries: list):
     print(f"{'═'*70}\n")
 
     # Overall pass rate
-    print(f"  {'Model':<38} {'Pass':>6}  {'Score':>7}  {'Δ':>6}")
-    print(f"  {'─'*60}")
+    print(f"  {'Model':<38} {'Pass':>6}  {'Score':>7}  {'Δ':>6}  {'Compile':>9}")
+    print(f"  {'─'*72}")
     prev_rate = None
     for s in summaries:
         bar   = "█" * int(s["pass_rate"] / 7)
@@ -352,7 +467,11 @@ def print_comparison(summaries: list):
         if prev_rate is not None:
             d = s["pass_rate"] - prev_rate
             delta = f"{'+'if d>=0 else ''}{d:.0f}%"
-        print(f"  {s['label']:<38} {s['passed']:>3}/{s['total']:<3}  {s['pass_rate']:>5.0f}%  {delta:>6}  {bar}")
+        if s.get("compile_skipped") or "compiled" not in s:
+            compile_col = "—"
+        else:
+            compile_col = f"{s['compiled']}/{s['total']} ({s['compile_rate']:.0f}%)"
+        print(f"  {s['label']:<38} {s['passed']:>3}/{s['total']:<3}  {s['pass_rate']:>5.0f}%  {delta:>6}  {compile_col:>9}  {bar}")
         prev_rate = s["pass_rate"]
 
     # By category
@@ -406,10 +525,11 @@ def load_all_results(results_dir: Path) -> list:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url",          default=os.environ.get("LM_STUDIO_URL", "http://192.168.208.1:3005"))
-    parser.add_argument("--results-dir",  default="eval_results")
-    parser.add_argument("--compare-only", action="store_true", help="Only show comparison of saved results")
-    parser.add_argument("--models",       nargs="*", help="Run only specific version labels (e.g. base v1 v3)")
+    parser.add_argument("--url",           default=os.environ.get("LM_STUDIO_URL", "http://192.168.208.1:3005"))
+    parser.add_argument("--results-dir",   default="eval_results")
+    parser.add_argument("--compare-only",  action="store_true", help="Only show comparison of saved results")
+    parser.add_argument("--models",        nargs="*", help="Run only specific version labels (e.g. base v1 v3)")
+    parser.add_argument("--skip-compile",  action="store_true", help="Skip aiken compile-check (faster, heuristic only)")
     args = parser.parse_args()
 
     results_dir = Path(args.results_dir)
@@ -446,7 +566,15 @@ def main():
     print(f"Models to test : {len(models_to_run)}")
     print(f"Prompts each   : {len(TEST_SUITE)}")
     print(f"Mode           : sequential (one at a time)")
+    print(f"Compile check  : {'disabled (--skip-compile)' if args.skip_compile else 'enabled (aiken check)'}")
     print(f"Results dir    : {results_dir}/\n")
+
+    if not args.skip_compile and not (SANDBOX_DIR / "aiken.toml").exists():
+        print(f"⚠  Compile sandbox not found at {SANDBOX_DIR}")
+        print(f"   One-time setup:")
+        print(f"     aiken new eval/aiken_sandbox")
+        print(f"     aiken check --project eval/aiken_sandbox")
+        print(f"   Continuing without compile-check (add --skip-compile to suppress this warning)\n")
 
     summaries = []
 
@@ -454,7 +582,7 @@ def main():
         actual_name = wait_for_model(client, model_cfg["lm_name"], model_cfg["label"])
 
         print(f"\n  Running {len(TEST_SUITE)} prompts...")
-        result = eval_model(client, actual_name, model_cfg["label"])
+        result = eval_model(client, actual_name, model_cfg["label"], skip_compile=args.skip_compile)
 
         print(f"\n  {result['passed']}/{result['total']} passed ({result['pass_rate']:.0f}%)")
         save_result(result, results_dir)
