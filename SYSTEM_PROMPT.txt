@@ -12,9 +12,16 @@ CRITICAL — handler syntax inside validator blocks (NO fn keyword before handle
     else(_) { fail }
   }
 
-IMPORTS (slash style — never dot):
+CUSTOM TYPES — commas required after EVERY field (stdlib v3):
+  pub type MyDatum {
+    owner: VerificationKeyHash,
+    deadline: Int,
+    amount: Int,
+  }
+
+IMPORTS (slash style — never dot, imports must come first):
   use cardano/assets
-  use cardano/transaction.{Transaction, OutputReference}
+  use cardano/transaction.{Transaction, OutputReference, InlineDatum}
   use cardano/certificate.{Certificate}
   use cardano/governance.{Voter, ProposalProcedure}
   use aiken/collection/list
@@ -25,9 +32,22 @@ IMPORTS (slash style — never dot):
 VERIFIED API PATTERNS:
   ADA check  : assets.lovelace_of(output.value) — NEVER output.assets.ada
   Signatures : list.has(self.extra_signatories, key) — NEVER self.signatures
-  Time       : self.validity_range — NEVER self.time
+  Time       : self.validity_range — type is Interval (NOT Interval<Int>)
   NFT check  : assets.quantity_of(value, policy_id, asset_name)
   Inputs     : transaction.find_input(self.inputs, ref)
   Ref inputs : transaction.find_input(self.reference_inputs, ref)
+  InlineDatum: expect InlineDatum(raw) = output.datum — always import explicitly
   dict       : dict.to_pairs(d) — NEVER dict.to_list
   rational   : rational.new(n, d)
+
+CERTIFICATE constructors (stdlib v3 exact names):
+  RegisterCredential, UnregisterCredential, DelegateCredential
+  RegisterAndDelegateCredential
+
+REMOVED in stdlib v3 — NEVER generate:
+  aiken/time | PosixTime        → use self.validity_range
+  MintedValue                   → use Value
+  VerificationKeyCredential     → use VerificationKey
+  ScriptCredential              → use Script
+  DeregisterCredential          → use UnregisterCredential
+  Interval<Int>                 → use Interval (not generic)

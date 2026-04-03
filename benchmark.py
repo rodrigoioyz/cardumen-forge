@@ -93,9 +93,16 @@ CRITICAL — handler syntax inside validator blocks (NO fn keyword before handle
     else(_) { fail }
   }
 
-IMPORTS (slash style — never dot):
+CUSTOM TYPES — commas required after EVERY field (stdlib v3):
+  pub type MyDatum {
+    owner: VerificationKeyHash,
+    deadline: Int,
+    amount: Int,
+  }
+
+IMPORTS (slash style — never dot, imports must come first):
   use cardano/assets
-  use cardano/transaction.{Transaction, OutputReference}
+  use cardano/transaction.{Transaction, OutputReference, InlineDatum}
   use cardano/certificate.{Certificate}
   use cardano/governance.{Voter, ProposalProcedure}
   use aiken/collection/list
@@ -106,12 +113,25 @@ IMPORTS (slash style — never dot):
 VERIFIED API PATTERNS:
   ADA check  : assets.lovelace_of(output.value) — NEVER output.assets.ada
   Signatures : list.has(self.extra_signatories, key) — NEVER self.signatures
-  Time       : self.validity_range — NEVER self.time
+  Time       : self.validity_range — type is Interval (NOT Interval<Int>)
   NFT check  : assets.quantity_of(value, policy_id, asset_name)
   Inputs     : transaction.find_input(self.inputs, ref)
   Ref inputs : transaction.find_input(self.reference_inputs, ref)
+  InlineDatum: expect InlineDatum(raw) = output.datum — always import explicitly
   dict       : dict.to_pairs(d) — NEVER dict.to_list
-  rational   : rational.new(n, d)"""
+  rational   : rational.new(n, d)
+
+CERTIFICATE constructors (stdlib v3 exact names):
+  RegisterCredential, UnregisterCredential, DelegateCredential
+  RegisterAndDelegateCredential
+
+REMOVED in stdlib v3 — NEVER generate:
+  aiken/time | PosixTime        → use self.validity_range
+  MintedValue                   → use Value
+  VerificationKeyCredential     → use VerificationKey
+  ScriptCredential              → use Script
+  DeregisterCredential          → use UnregisterCredential
+  Interval<Int>                 → use Interval (not generic)"""
 
 TEST_SUITE = [
     {
@@ -247,23 +267,61 @@ def compile_check(code: str) -> dict:
     SANDBOX_VALIDATOR.write_text(code, encoding="utf-8")
 
     try:
-        r = subprocess.run(
+        import pty, select, io
+        master_fd, slave_fd = pty.openpty()
+        proc = subprocess.Popen(
             ["aiken", "check"],
             cwd=SANDBOX_DIR,
-            capture_output=True,
-            text=True,
-            timeout=60,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            close_fds=True,
+            env={**os.environ, "TERM": "xterm-256color", "COLUMNS": "200"},
         )
-        output = (r.stdout + r.stderr).strip()
+        os.close(slave_fd)
+
+        chunks = []
+        import time
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            try:
+                r_list, _, _ = select.select([master_fd], [], [], 0.2)
+                if r_list:
+                    data = os.read(master_fd, 4096)
+                    chunks.append(data)
+                elif proc.poll() is not None:
+                    # drain remaining
+                    try:
+                        while True:
+                            data = os.read(master_fd, 4096)
+                            chunks.append(data)
+                    except OSError:
+                        pass
+                    break
+            except OSError:
+                break
+
+        proc.wait()
+        try:
+            os.close(master_fd)
+        except OSError:
+            pass
+
+        raw = b"".join(chunks).decode("utf-8", errors="replace")
+        # Strip ANSI escape sequences
+        ansi_escape = re.compile(r'\x1b(?:[@-Z\\-_]|\[[0-9;?]*[ -/]*[@-~])')
+        text = ansi_escape.sub("", raw).strip()
+
         return {
-            "pass":    r.returncode == 0,
+            "pass":    proc.returncode == 0,
             "skipped": False,
-            "error":   output if r.returncode != 0 else "",
+            "error":   text if proc.returncode != 0 else "",
+            "rc":      proc.returncode,
         }
     except FileNotFoundError:
         return {"pass": None, "skipped": True, "error": "aiken not in PATH"}
-    except subprocess.TimeoutExpired:
-        return {"pass": None, "skipped": True, "error": "timeout (60s)"}
+    except Exception as e:
+        return {"pass": None, "skipped": True, "error": f"compile check error: {e}"}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -306,7 +364,7 @@ def run_checks(output: str, must_contain: list, must_not_contain: list) -> dict:
 # Single model eval
 # ─────────────────────────────────────────────────────────────────────────────
 
-def eval_model(client, model_name: str, label: str, skip_compile: bool = False) -> dict:
+def eval_model(client, model_name: str, label: str, skip_compile: bool = False, debug_compile: bool = False) -> dict:
     results = []
     passed = 0
     compiled = 0
@@ -351,14 +409,16 @@ def eval_model(client, model_name: str, label: str, skip_compile: bool = False) 
             failed = [k for k, v in checks.items() if not v and k != "pass"]
             print(f"         ↳ failed: {failed}")
         if not skip_compile and not compile["skipped"] and not compile["pass"]:
-            # Filter out progress lines ("Compiling", "Resolving", "Fetched")
-            # to show only the actual Aiken error
-            error_lines = [
-                l for l in compile["error"].splitlines()
-                if not l.strip().startswith(("Compiling", "Resolving", "Fetched", "Collecting"))
-            ]
-            error_snippet = "\n         ".join(error_lines[:6]).strip()
-            print(f"         ↳ compile error: {error_snippet}")
+            if debug_compile:
+                print(f"         ↳ RAW rc={compile.get('rc')} stdout+stderr:")
+                print(repr(compile["error"][:800]))
+            else:
+                lines = [l for l in compile["error"].splitlines() if l.strip()]
+                progress_prefixes = ("Compiling", "Resolving", "Fetched", "Collecting", "Downloading")
+                signal_lines = [l for l in lines if not any(l.strip().startswith(p) for p in progress_prefixes)]
+                shown = signal_lines[:8] if signal_lines else lines[-8:]
+                error_snippet = "\n           ".join(shown)
+                print(f"         ↳ {error_snippet}")
         if checks["pass"]:
             passed += 1
 
@@ -537,7 +597,8 @@ def main():
     parser.add_argument("--results-dir",   default="eval_results")
     parser.add_argument("--compare-only",  action="store_true", help="Only show comparison of saved results")
     parser.add_argument("--models",        nargs="*", help="Run only specific version labels (e.g. base v1 v3)")
-    parser.add_argument("--skip-compile",  action="store_true", help="Skip aiken compile-check (faster, heuristic only)")
+    parser.add_argument("--skip-compile",   action="store_true", help="Skip aiken compile-check (faster, heuristic only)")
+    parser.add_argument("--debug-compile",  action="store_true", help="Print raw aiken output for every compile failure")
     args = parser.parse_args()
 
     results_dir = Path(args.results_dir)
@@ -590,7 +651,7 @@ def main():
         actual_name = wait_for_model(client, model_cfg["lm_name"], model_cfg["label"])
 
         print(f"\n  Running {len(TEST_SUITE)} prompts...")
-        result = eval_model(client, actual_name, model_cfg["label"], skip_compile=args.skip_compile)
+        result = eval_model(client, actual_name, model_cfg["label"], skip_compile=args.skip_compile, debug_compile=args.debug_compile)
 
         print(f"\n  {result['passed']}/{result['total']} passed ({result['pass_rate']:.0f}%)")
         save_result(result, results_dir)
