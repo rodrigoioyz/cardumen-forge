@@ -854,7 +854,7 @@ Results are saved per model to `eval_results/` and excluded from git (see `.giti
 
 > Compile score introduced in v6. `—` = not measured. Heuristic = string-based checks. Compile = `aiken check` via sandbox.
 
-v8 is the first model to pass all 15 heuristic checks. Compile success is 10/15 (67%). Remaining failures are known edge cases: missing `pub type`, removed constructors (e.g. `MintedValue`), and incomplete module paths — all addressable via targeted training data.
+v8 is the first model to pass all 15 heuristic checks. Previous versions (v6–v7) still failed the `spend_nft_gate` check. Compile success is 10/15 (67%). Despite passing all heuristic checks, compile failures remain — these are cases not captured by static validation: missing `pub type` declarations, removed constructors (e.g. `MintedValue`), and incomplete module paths. All addressable via targeted training data.
 
 ### By category
 
