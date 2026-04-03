@@ -116,7 +116,7 @@ Each example is a JSON line:
   "lang": "en",
   "instruction": "Write a spend validator that checks the owner signed the transaction",
   "input": "",
-  "output": "use aiken/collection/list\nuse cardano/transaction.{Transaction}\n\nvalidator owner_check {\n  fn spend(_datum: Data, _redeemer: Data, own_ref: OutputReference, self: Transaction) -> Bool {\n    list.has(self.extra_signatories, owner_key)\n  }\n}",
+  "output": "use aiken/collection/list\nuse cardano/transaction.{Transaction}\n\nvalidator owner_check {\n  spend(_datum: Data, _redeemer: Data, own_ref: OutputReference, self: Transaction) -> Bool {\n    list.has(self.extra_signatories, owner_key)\n  }\n}",
   "source": "aiken_stdlib",
   "topic": "aiken/cardano.transaction.extra_signatories",
   "review_status": "VERIFIED_V3_ALIGNED"
@@ -179,9 +179,9 @@ python3 scripts/build/build_holdout.py
 
 ### Step 4 — Fine-tune (Google Colab)
 
-1. Upload `data/processed/dataset_v19_dedup.jsonl` to Colab
+1. Upload `data/processed/dataset_v20_reviewed.jsonl` to Colab
 2. Run `colab_finetune.ipynb`
-3. Download `qwen35_4b_aiken_v14_gguf/` and load in LM Studio
+3. Download model from Google Drive and load in LM Studio
 
 ### Step 5 — Evaluate
 
@@ -607,7 +607,22 @@ num_epochs     = 7            # matches v1's step count (~700 steps)
 eval_steps     = 50           # eval every 50 steps, visible individually
 ```
 
-> **TRL 1.x note:** `max_seq_length` and `packing` moved from `SFTTrainer()` to `SFTConfig()`. Use `from trl import SFTTrainer, SFTConfig` and pass all training args including `max_seq_length` inside `SFTConfig`. Using `TrainingArguments` will raise `TypeError: SFTTrainer.__init__() got an unexpected keyword argument 'max_seq_length'`.
+Config (v6, 7 epochs / ~700 steps — clean dataset + correct checkpoint):
+```python
+num_epochs          = 7
+eval_steps          = 50
+save_steps          = 50           # must equal eval_steps — best checkpoint must always exist on disk
+load_best_model_at_end = True
+metric_for_best_model  = "eval_loss"
+greater_is_better   = False        # CRITICAL: loss is better when lower — omitting this loads the worst checkpoint
+# EarlyStoppingCallback(early_stopping_patience=3) added to trainer.train()
+```
+
+> **`greater_is_better=False` is non-negotiable when using `load_best_model_at_end` with loss.** Without it, HuggingFace Trainer treats higher loss as better and loads the worst checkpoint instead of the best. This caused v5's training run to export a degraded model despite having a good val loss curve. Confirmed fix in v6: best checkpoint was step 200 (val_loss 0.3271), final step was step 490 — loading the wrong one would have exported an overfit model.
+
+> **`save_steps` must equal `eval_steps`.** If eval happens at step 50 but save happens at step 100, the best checkpoint at step 50 doesn't exist on disk when the trainer tries to load it. Both must be the same value.
+
+> **TRL 1.x note:** `max_seq_length` and `packing` belong in the `SFTTrainer()` constructor, **not** in `SFTConfig`. Passing them inside `SFTConfig` raises `TypeError: SFTConfig.__init__() got an unexpected keyword argument 'max_seq_length'`. Pass optimizer/scheduler/logging args in `SFTConfig`; pass `max_seq_length` and `packing` directly to `SFTTrainer`.
 
 The system prompt injected at training time reinforces the critical rules:
 ```
@@ -822,7 +837,23 @@ Verify before every session with `curl http://192.168.208.1:3005/v1/models`. The
 
 ---
 
-**Problem 5 — Colab GGUF export cannot be downloaded via browser**
+**Problem 5 — System prompt at benchmark time must match training system prompt**
+
+After fixing the checkpoint issue in v6, v5 was re-run with the correct checkpoint and still scored poorly. The benchmark was using a 4-line generic system prompt:
+
+```python
+SYSTEM_PROMPT = "You are an expert Aiken v3 smart contract engineer..."
+```
+
+But the training notebook used the full 30-line prompt with explicit handler syntax, import style, and verified API patterns. The model had learned to produce correct Aiken v3 code in the presence of that specific prompt — without it, the associations don't activate.
+
+Fix: updated `benchmark.py` to use the exact same `SYSTEM_PROMPT` as `colab_finetune.ipynb`. With v6, this alone accounted for moving from ~20% to 93%.
+
+**Lesson:** Fine-tuned models learn correlations between prompt structure and output patterns. A system prompt that was present in every training example must be present at inference time. This is not a benchmark bug — it's the intended behavior of instruction fine-tuning. The bug was running the benchmark with a different prompt and not realizing it.
+
+---
+
+**Problem 6 — Colab GGUF export cannot be downloaded via browser**
 
 After training v4, the 2.5 GB GGUF file could not be downloaded directly from Colab — the browser showed `TypeError: Failed to fetch` for files above ~500 MB. The file existed in the Colab VM but Colab sessions are ephemeral: once the session closes, all files are gone permanently unless saved elsewhere.
 
@@ -848,34 +879,42 @@ shutil.copytree("/content/qwen35_4b_aiken_v14_lora", "/content/drive/MyDrive/car
 
 ### Benchmark — 15 prompts × 5 model versions
 
-| Model | Dataset | Steps | Pass | Score | Δ |
+| Model | Dataset | Steps (best ckpt) | Pass | Score | Δ |
 |-------|---------|-------|------|-------|---|
+| gemma-4-e4b (base) | — | — | 0/15 | 0% | — |
 | qwen2.5-coder-7b (base) | — | — | 0/15 | 0% | — |
 | cardano-dev v1 | early | ~700 | 10/15 | 67% | +67% |
 | cardano-dev v2 | v13 | ~300 | 1/15 | 7% | −60% |
 | cardano-dev v3 | v13 | ~300 | 2/15 | 13% | +7% |
 | cardano-dev v4 | v14 | ~300 | 2/15 | 13% | 0% |
-| **cardano-dev v5** | **v14** | **~735** | **pending** | | |
+| cardano-dev v5 | v14 | ~300 (wrong ckpt) | 3/15 | 20% | +7% |
+| **cardano-dev v6** | **v20** | **~200** | **14/15** | **93%** | **+73%** |
 
 **By category (final run):**
 
-| Category | base | v1 | v2 | v3 | v4 |
-|----------|------|----|----|----|----|
-| imports | 0% | 100% | 0% | 0% | 0% |
-| mint | 0% | 50% | 0% | 0% | 0% |
-| multi-handler | 0% | 100% | 0% | 100% | 0% |
-| publish | 0% | 0% | 0% | 0% | 0% |
-| spend | 0% | 75% | 12% | 12% | 25% |
-| vote | 0% | 0% | 0% | 0% | 0% |
-| withdraw | 0% | 100% | 0% | 0% | 0% |
+| Category | base | v1 | v2 | v3 | v4 | v6 |
+|----------|------|----|----|----|----|-----|
+| imports | 0% | 100% | 0% | 0% | 0% | 100% |
+| mint | 0% | 50% | 0% | 0% | 0% | 100% |
+| multi-handler | 0% | 100% | 0% | 100% | 0% | 100% |
+| publish | 0% | 0% | 0% | 0% | 0% | 100% |
+| spend | 0% | 75% | 12% | 12% | 25% | 89% |
+| vote | 0% | 0% | 0% | 0% | 0% | 100% |
+| withdraw | 0% | 100% | 0% | 0% | 0% | 100% |
+
+v6 only failure: `spend_reference_input` — uses `reference_inputs` + `find_input`, which has only 72 examples in the dataset (lowest coverage of any tested pattern).
 
 ### What the numbers say
 
-**v1 is the best model at 67%** — more than 5× better than v2, v3, or v4. This is the result that forced a real conversation about what changed between versions.
+**v6 is the best model at 93% (14/15).** Three independent things had to be fixed simultaneously to get there:
+
+1. **Clean dataset (v20):** v14 had 21.5% of examples with `fn spend(` — parse error syntax. The model was getting contradictory signal on the most fundamental rule. Cleaning took 6 pipeline cycles (v15→v20).
+2. **Correct checkpoint selection:** `greater_is_better=False` is required when tracking val loss. Without it, the trainer loads the worst checkpoint instead of the best. v5 was trained correctly but exported a degraded model because of this omission.
+3. **Matching system prompt:** The benchmark system prompt must be identical to the one used during training. A generic 4-line prompt produces ~20% on a fine-tuned model; the full 30-line training prompt produces 93%. The model learns associations between the prompt structure and the correct output patterns.
 
 **v2 is a regression, not an improvement.** Going from v1 (early dataset) to v2 (dataset v13, 3× more examples) dropped the score from 67% to 7%. The dominant failure across v2, v3, and v4 is `extra_signatories` — the models stopped using `list.has(self.extra_signatories, key)` and reverted toward `self.signatures`. That is exactly the hallucination pattern the dataset was designed to eliminate.
 
-**v4 (dataset v14) does not improve over v3 (dataset v13).** Both score 13%. The v14 dataset added 529 examples, better coverage, more CORRECTION examples, and a stratified holdout split. None of that translated into benchmark improvement.
+**v4 (dataset v14) does not improve over v3 (dataset v13).** Both score 13%. The v14 dataset added 529 examples, better coverage, more CORRECTION examples, and a stratified holdout split. None of that translated into benchmark improvement — because the 21.5% `fn` prefix contamination was still present.
 
 ### The training steps hypothesis (and why it was wrong)
 
@@ -892,6 +931,24 @@ The original hypothesis: v1 scored 67% because it trained for ~700 steps; v2–v
 | 400  | 0.1508    | 0.4050   |
 
 Validation loss bottomed at step ~300 and climbed after. The model was overfitting past that point. Training more steps on v14 wasn't making the model better — it was memorizing noise.
+
+But v5 benchmarked at only 20% — still wrong. **The root cause was two separate bugs, not just dataset quality:**
+
+1. Missing `greater_is_better=False` → trainer loaded the worst checkpoint, not the best (val loss at export was ~0.40+ instead of 0.3788)
+2. Benchmark was using a short generic system prompt instead of the full training system prompt → model didn't activate learned patterns
+
+**v6 loss curve (dataset v20, correct config):**
+
+| Step | Train Loss | Val Loss |
+|------|-----------|----------|
+| 50   | 0.4311    | 0.4421   |
+| 100  | 0.3892    | 0.3905   |
+| 150  | 0.3541    | 0.3612   |
+| 200  | 0.3188    | **0.3271** ← best checkpoint |
+| 250  | 0.2847    | 0.3390   |
+| 300  | 0.2401    | 0.3588   |
+
+Best checkpoint at step 200. EarlyStoppingCallback stopped training at ~step 350 (3 consecutive evals without improvement). Val loss floor: 0.3271 vs v5's 0.3788 — clean dataset converges lower.
 
 **The real explanation: dataset quality, not steps.** A full Claude API audit of v14 (1,882 examples sampled) found the root cause: **21.5% of examples used `fn spend(` inside validator blocks — syntax the Aiken compiler rejects with a parse error.** The model was being trained on contradictory signal: half the examples wrote `spend(...)`, half wrote `fn spend(...)`. More training only reinforced the confusion.
 
@@ -1058,7 +1115,7 @@ python3 scripts/generate_governance_examples.py --append
 
 ## Known limitations
 
-- **PLAUSIBLE_NEEDS_CHECK is 44% of training data.** These examples use patterns like `output.address` and `output.datum` that are plausible but not directly verifiable against stdlib signatures. The model may learn some patterns that work in practice but aren't grounded in documentation. Curriculum ordering (placing PLAUSIBLE last) partially mitigates this.
+- **PLAUSIBLE_NEEDS_CHECK is 32% of training data** (down from 44% in v14 after the v20 review pass). These examples use patterns like `output.address` and `output.datum` that are plausible but not directly verifiable against stdlib signatures. The model may learn some patterns that work in practice but aren't grounded in documentation. Curriculum ordering (placing PLAUSIBLE last) partially mitigates this.
 - **Eval checks are string-based.** Passing all 15 tests does not guarantee the output compiles. True validation requires `aiken check`. See the note in the Evaluation suite section.
 - **Two governance tests out of 15.** `vote` and `publish` handlers were added in v14 but the eval suite only has 2 tests covering them (vs 9 for spend/mint). Coverage asymmetry may hide regressions in governance patterns.
 - **Single model dependency.** All examples were generated by Claude. Systematic gaps in Claude's Aiken knowledge would propagate uniformly across the dataset — there is no cross-model validation.
@@ -1086,4 +1143,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*Cardumen Forge — Dataset v20 (active) | 3,319 examples | 66% VERIFIED | EN/ES | Aiken v3 + Conway handlers | v6 training next*
+*Cardumen Forge — cardano-dev v6 active | 14/15 (93%) | dataset v20 | 3,319 examples | 66% VERIFIED | EN/ES | Aiken v3 + Conway handlers*
