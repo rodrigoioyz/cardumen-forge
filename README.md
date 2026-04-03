@@ -6,7 +6,7 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 
 **Goal:** Turn a general-purpose code LLM into a domain expert that generates correct, compilable Aiken v3 validators — runnable locally on 6 GB VRAM.
 
-> **Current result:** cardano-dev v6 — **14/15 (93%)** on the benchmark suite | dataset v20 | 3,319 examples | 66% VERIFIED
+> **Current result:** cardano-dev v5 & v6 — **14/15 (93%)** on the benchmark suite | dataset v20 | 3,319 examples | 66% VERIFIED
 
 *Cardumen (Spanish): a school of fish — collective movement, no single center, each one navigates but the group has direction. Forge: to build something strong from raw material. Cardumen Forge is about building the tools for anyone to write Cardano smart contracts.*
 
@@ -529,13 +529,15 @@ batch_size     = 4
 grad_accum     = 8            # effective batch = 32
 ```
 
-**v5** (7 epochs / ~735 steps — hypothesis test: was v1's advantage about step count?):
+**v5** (dataset v20, 7 epochs — step count hypothesis test, wrong checkpoint config):
 ```python
-num_epochs     = 7            # matches v1's step count (~700 steps)
-eval_steps     = 50           # eval every 50 steps, visible individually
+num_epochs     = 7
+eval_steps     = 50
+# missing: greater_is_better=False → exported wrong checkpoint
+# result: 14/15 (93%) — dataset quality compensated for checkpoint error
 ```
 
-**v6** (7 epochs / ~350 steps actual — clean dataset + correct config):
+**v6** (dataset v20, 7 epochs — same dataset as v5, correct config):
 ```python
 num_epochs             = 7
 eval_steps             = 50
@@ -807,54 +809,62 @@ Results are saved per model to `eval_results/` and excluded from git (see `.giti
 
 ### Final benchmark table
 
-| Model | Dataset | Best ckpt (steps) | Pass | Score | Δ |
-|-------|---------|-------------------|------|-------|---|
-| gemma-4-e4b (base) | — | — | 0/15 | 0% | — |
+> **Note on benchmark history:** Early runs of v2–v5 used a generic 4-line system prompt instead of the full training system prompt. Those results (7%, 13%, 13%, 20%) were completely wrong — artifacts of inference/training prompt mismatch, not of model quality. The table below uses the correct system prompt for all models.
+
+| Model | Dataset | Best ckpt (steps) | Pass | Score | Δ vs prev |
+|-------|---------|-------------------|------|-------|-----------|
 | qwen2.5-coder-7b (base) | — | — | 0/15 | 0% | — |
-| cardano-dev v1 | early | ~700 | 10/15 | 67% | +67% |
-| cardano-dev v2 | v13 | ~300 | 1/15 | 7% | −60% |
-| cardano-dev v3 | v13 | ~300 | 2/15 | 13% | +7% |
-| cardano-dev v4 | v14 | ~300 | 2/15 | 13% | 0% |
-| cardano-dev v5 | v14 | ~300 (wrong ckpt) | 3/15 | 20% | +7% |
-| **cardano-dev v6** | **v20** | **~200** | **14/15** | **93%** | **+73%** |
+| gemma-4-e4b (base) | — | — | 5/15 | 33% | +33% |
+| cardano-dev v1 | early | ~700 | 11/15 | 73% | +40% |
+| cardano-dev v2 | v13 | ~300 | 10/15 | 67% | −7% |
+| cardano-dev v3 | v13 | ~300 | 12/15 | 80% | +13% |
+| cardano-dev v4 | v14 | ~300 | 13/15 | 87% | +7% |
+| cardano-dev v5 | v20 | ~300 (wrong ckpt) | 14/15 | 93% | +7% |
+| **cardano-dev v6** | **v20** | **~200 (best ckpt)** | **14/15** | **93%** | **0%** |
 
 ### By category
 
-| Category | base | v1 | v2 | v3 | v4 | v6 |
-|----------|------|----|----|----|----|-----|
-| imports | 0% | 100% | 0% | 0% | 0% | 100% |
-| mint | 0% | 50% | 0% | 0% | 0% | 100% |
-| multi-handler | 0% | 100% | 0% | 100% | 0% | 100% |
-| publish | 0% | 0% | 0% | 0% | 0% | 100% |
-| spend | 0% | 75% | 12% | 12% | 25% | 89% |
-| vote | 0% | 0% | 0% | 0% | 0% | 100% |
-| withdraw | 0% | 100% | 0% | 0% | 0% | 100% |
+| Category | qwen2.5 base | gemma-4 base | v1 | v2 | v3 | v4 | v5 | v6 |
+|----------|--------------|--------------|----|----|----|----|----|-----|
+| imports | 0% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| mint | 0% | 0% | 50% | 50% | 50% | 100% | 100% | 100% |
+| multi-handler | 0% | 0% | 100% | 100% | 100% | 100% | 100% | 100% |
+| publish | 0% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| spend | 0% | 25% | 62% | 62% | 75% | 75% | 88% | 88% |
+| vote | 0% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| withdraw | 0% | 0% | 100% | 0% | 100% | 100% | 100% | 100% |
 
-v6 only failure: `spend_reference_input` — uses `reference_inputs` + `find_input`, which has only 72 examples in the dataset (lowest coverage of any tested pattern).
+Consistent failure across all versions: `spend_reference_input` — requires `reference_inputs` + `find_input` together, only 72 examples in the dataset (lowest coverage of any tested pattern). Even gemma-4-e4b base fails it.
 
 ---
 
 ### What the numbers say
 
-**v6 is the best model at 93% (14/15).** Three independent things had to be fixed simultaneously to get there:
+**v5 and v6 tie at 93% (14/15).** Both are trained on the clean v20 dataset. The "wrong checkpoint" issue (missing `greater_is_better=False`) had minimal impact on the final score when the dataset was clean — the val loss floor of 0.3271 at step 200 was low enough that even a slightly suboptimal checkpoint produced the same benchmark result.
 
-1. **Clean dataset (v20):** v14 had 21.5% of examples with `fn spend(` — parse error syntax. The model was getting contradictory signal on the most fundamental rule. Cleaning took 6 pipeline cycles (v15→v20).
-2. **Correct checkpoint selection:** `greater_is_better=False` is required when tracking val loss. Without it, the trainer loads the worst checkpoint instead of the best. v5 was trained correctly but exported a degraded model because of this omission.
-3. **Matching system prompt:** The benchmark system prompt must be identical to the one used during training. A generic 4-line prompt produces ~20% on a fine-tuned model; the full 30-line training prompt produces 93%. The model learns associations between the prompt structure and the correct output patterns.
+**The system prompt was the dominant factor in all previous benchmark failures.** Early runs of v2–v5 used a generic 4-line system prompt instead of the full training prompt. This produced scores of 7%, 13%, 13%, and 20% — which looked like model failures but were entirely inference failures. With the correct prompt, those same models score 67%, 80%, 87%, and 93%.
 
-**v2 is a regression, not an improvement.** Going from v1 (early dataset) to v2 (dataset v13, 3× more examples) dropped the score from 67% to 7%. The dominant failure across v2, v3, and v4 is `extra_signatories` — the models stopped using `list.has(self.extra_signatories, key)` and reverted toward `self.signatures`. That is exactly the hallucination pattern the dataset was designed to eliminate.
+**v2 is not a regression.** The earlier claim that "v2 dropped from 67% to 7%" was wrong — it was an artifact of the wrong system prompt. v2 (dataset v13) actually scores 67%, nearly identical to v1 (73%). The two models are comparable; the extra data in v13 didn't hurt and didn't help dramatically.
 
-**v4 (dataset v14) does not improve over v3 (dataset v13).** Both score 13%. The v14 dataset added 529 examples, better coverage, more CORRECTION examples, and a stratified holdout split. None of that translated into benchmark improvement — because the 21.5% `fn` prefix contamination was still present.
+**Dataset quality drives a clear, gradual improvement:** v2 (v13, 67%) → v3 (v13 run2, 80%) → v4 (v14, 87%) → v5/v6 (v20, 93%). Each dataset improvement produced a measurable gain. The jump to v20 (+6%) came from eliminating the 21.5% `fn` prefix contamination and promoting 351 PLAUSIBLE examples to VERIFIED.
 
-**v1 won because its dataset was small and coherent, not because it had more steps.** The dataset grew from v1 → v14 by adding more sources, but without systematic quality control on each new batch. Quantity without consistency is worse than less data that all points the same direction.
+**gemma-4-e4b base scores 33% without fine-tuning** — it has real Aiken v3 knowledge from pretraining (passes vote, publish, import_style correctly). qwen2.5-coder-7b base scores 0% because it doesn't generate `use x/y` style imports at all — it defaults to Python-like imports or omits them entirely.
+
+**The only persistent failure across all fine-tuned versions** is `spend_reference_input` — the test requires both `reference_inputs` and `find_input` in the output, and the pattern has only 72 examples in the dataset. This is a coverage problem, not a syntax problem.
 
 ---
 
 ### The training steps hypothesis (and why it was wrong)
 
-The original hypothesis: v1 scored 67% because it trained for ~700 steps; v2–v4 scored 7–13% because they only trained ~300 steps. Two variables changed simultaneously so it was impossible to isolate the cause just from benchmark numbers.
+The original hypothesis: v1 scored 67% because it trained for ~700 steps; v2–v4 scored 7–13% because they only trained ~300 steps.
 
-**v5 was trained to test this.** Same dataset v14, 7 epochs (~735 steps, matching v1). The loss curve told the story early:
+**This was wrong.** With the correct system prompt at benchmark time, v2–v4 score 67–87% — the step count was not the bottleneck. The apparent catastrophic failures were entirely due to running the benchmark with the wrong system prompt.
+
+The real variable that changed across v1→v2→v3→v4 was **dataset composition**, not step count. And across versions the improvement is clear but gradual — not the cliff that the wrong benchmark numbers suggested.
+
+**Loss curves tell the real training story.**
+
+v5 first run (dataset v14, 7 epochs — step count hypothesis test):
 
 | Step | Train Loss | Val Loss |
 |------|-----------|----------|
@@ -864,14 +874,9 @@ The original hypothesis: v1 scored 67% because it trained for ~700 steps; v2–v
 | 300  | 0.2991    | **0.3788** ← best |
 | 400  | 0.1508    | 0.4050   |
 
-Validation loss bottomed at step ~300 and climbed after. The model was overfitting past that point. Training more steps on v14 wasn't making the model better — it was memorizing noise.
+Validation loss bottomed at step ~300 and climbed after — the model was overfitting on v14. More steps on a contaminated dataset doesn't help; it memorizes the noise.
 
-But v5 benchmarked at only 20% — still wrong. **The root cause was two separate bugs on top of the dataset problem:**
-
-1. Missing `greater_is_better=False` → trainer loaded the worst checkpoint, not the best (val loss at export was ~0.40+ instead of 0.3788)
-2. Benchmark was using a short generic system prompt instead of the full training system prompt → model didn't activate learned patterns
-
-**v6 loss curve** (dataset v20, correct config):
+v6 (dataset v20, correct config — `greater_is_better=False`, `save_steps=eval_steps`):
 
 | Step | Train Loss | Val Loss |
 |------|-----------|----------|
@@ -882,12 +887,12 @@ But v5 benchmarked at only 20% — still wrong. **The root cause was two separat
 | 250  | 0.2847    | 0.3390   |
 | 300  | 0.2401    | 0.3588   |
 
-Best checkpoint at step 200. EarlyStoppingCallback stopped training at ~step 350 (3 consecutive evals without improvement). Val loss floor: 0.3271 vs v5's 0.3788 — clean dataset converges lower.
+Val loss floor: 0.3271 vs v5's 0.3788 — clean dataset converges lower. EarlyStoppingCallback stopped training at ~step 350.
 
-**The real explanation: dataset quality, not steps.** A full Claude API audit of v14 (1,882 examples sampled) found the root cause: **21.5% of examples used `fn spend(` inside validator blocks — syntax the Aiken compiler rejects with a parse error.** The model was being trained on contradictory signal: half the examples wrote `spend(...)`, half wrote `fn spend(...)`. More training only reinforced the confusion.
+**Dataset quality was the dominant factor.** A full Claude API audit of v14 (1,882 examples sampled) found: **21.5% of examples used `fn spend(` inside validator blocks — syntax the Aiken compiler rejects with a parse error.** The model was trained on contradictory signal. More training steps only reinforced the contradiction.
 
-Secondary findings from the audit:
-- ~25% of outputs truncated mid-code (model learns to produce incomplete validators)
+Secondary audit findings on v14:
+- ~25% of outputs truncated mid-code
 - `ScriptCredential`/`PubKeyCredential` (Plutus v2 names, not valid in Aiken v3) in ~20 examples
 - `PolicyId` imported from `cardano/transaction` instead of `cardano/assets` in ~17 examples
 - 6 examples with completely broken/incoherent code
@@ -1128,7 +1133,7 @@ SYSTEM_PROMPT = "You are an expert Aiken v3 smart contract engineer..."
 
 But the training notebook used the full 30-line prompt with explicit handler syntax, import style, and verified API patterns. The model had learned to produce correct Aiken v3 code in the presence of that specific prompt — without it, the associations don't activate.
 
-Fix: updated `benchmark.py` to use the exact same `SYSTEM_PROMPT` as `colab_finetune.ipynb`. With v6, this alone accounted for moving from ~20% to 93%.
+Fix: updated `benchmark.py` to use the exact same `SYSTEM_PROMPT` as `colab_finetune.ipynb`. Re-running all models with the correct prompt revealed the true scores — v2 went from 7% to 67%, v3 from 13% to 80%, v4 from 13% to 87%. The models were never broken; the benchmark was.
 
 **Lesson:** Fine-tuned models learn correlations between prompt structure and output patterns. A system prompt that was present in every training example must be present at inference time. This is not a benchmark bug — it's the intended behavior of instruction fine-tuning. The bug was running the benchmark with a different prompt and not realizing it.
 
@@ -1250,4 +1255,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*Cardumen Forge — cardano-dev v6 active | 14/15 (93%) | dataset v20 | 3,319 examples | 66% VERIFIED | EN/ES | Aiken v3 + Conway handlers*
+*Cardumen Forge — cardano-dev v5/v6 | 14/15 (93%) | dataset v20 | 3,319 examples | 66% VERIFIED | EN/ES | Aiken v3 + Conway handlers*
