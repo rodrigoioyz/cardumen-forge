@@ -10,8 +10,8 @@ from pathlib import Path
 from collections import Counter
 
 DATASETS = [
-    ("v14",  "data/processed/dataset_v14_train_split.jsonl"),
-    ("v19",  "data/processed/dataset_v19_dedup.jsonl"),
+    ("v21",  "data/processed/dataset_v20_reviewed.jsonl.v21_backup"),
+    ("v22-pre", "data/processed/dataset_v22.jsonl.v21_backup"),
     ("v22",  "data/processed/dataset_v22.jsonl"),
 ]
 

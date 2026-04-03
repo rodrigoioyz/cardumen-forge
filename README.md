@@ -468,44 +468,62 @@ Key results: `fn` prefix (21.5% → 0%) was the root cause of v2–v4 failures. 
 
 ### Measured improvement (v20 → v22)
 
-The v20→v22 cycle focused on stdlib v3 compatibility and compile verification rather than example count.
+The v20→v22 cycle focused on stdlib v3 compatibility and compile verification rather than example count. `scripts/compare_datasets.py` output (v20=3,319 file no longer on disk; v21 is the earliest available backup):
 
-#### v20 → v21 (reference inputs)
+```
+  Metric                                           v21              v22
+  ──────────────────────────────────────────────────────────────────────
 
-`scripts/generate_reference_input_examples.py` generated 82 CIP-31 examples targeting `find_input` patterns.
+  Total examples                                 3,401            3,474
 
-| Metric | v20 | v21 |
-|--------|-----|-----|
-| Total examples | 3,319 | 3,401 |
-| find_input coverage | 41 | 159 |
-| source: reference_input_examples | 0 | 82 |
+  ── SYNTAX ERRORS (lower = better) ──
+  fn prefix in handlers                      0 ( 0.0%)        0 ( 0.0%)
+  Dot-style imports                         16 ( 0.5%)   ✅   11 ( 0.3%)
+  Wrong Credential names                     2 ( 0.1%)   ✅    1 ( 0.0%)
+  PolicyId wrong module                    380 (11.2%)      403 (11.6%)  ⚠
+  Truncated outputs                         19 ( 0.6%)       44 ( 1.3%)  ⚠
 
-#### v21 → v22 (stdlib v3 migration + compile verification)
+  ── COVERAGE (higher = better) ──
+  Handler: spend(                         1027 (30.2%)     1074 (30.9%)
+  Handler: mint(                           354 (10.4%)      368 (10.6%)
+  Handler: withdraw(                       124 ( 3.6%)      127 ( 3.7%)
+  Handler: publish(                         56 ( 1.6%)   ✅   69 ( 2.0%)
+  Handler: vote(                            58 ( 1.7%)       58 ( 1.7%)
+  Handler: propose(                         15 ( 0.4%)       14 ( 0.4%)
 
-`scripts/migrate_dataset_to_v3.py` ran an automated migration across the full dataset, followed by `scripts/audit_dataset_compile.py` and `scripts/regenerate_failing.py` to verify and fix every example that fails `aiken check`.
+  ── QUALITY SIGNALS ──
+  Has validator block                     1899 (55.8%)     1970 (56.7%)
+  Has else(_) fallback                     221 ( 6.5%)      220 ( 6.3%)
+  Uses extra_signatories                   749 (22.0%)      814 (23.4%)
 
-| Metric | v21 | v22 |
-|--------|-----|-----|
-| Total examples | 3,401 | 3,474 |
-| Banned stdlib v3 patterns | ~200+ | **0** |
-| correction_set compile pass rate | ~73% | **100%** |
-| generated_governance_v1 compile pass rate | ~98% | **100%** |
-| v3-compat examples | 0 | 74 |
-| Irreparable examples removed | — | 1 |
+  ── STATUS DISTRIBUTION ──
+  CORRECTION                                78 ( 2.3%)       78 ( 2.2%)
+  PLAUSIBLE_NEEDS_CHECK                   1052 (30.9%)     1052 (30.3%)
+  VERIFIED_V3                                0 ( 0.0%)   ✅   74 ( 2.1%)
+  VERIFIED_V3_ALIGNED                     2271 (66.8%)     2270 (65.3%)
+```
 
-**What `migrate_dataset_to_v3.py` changed:**
+Key results: `VERIFIED_V3` (74) is the new `v3_compat_examples` source added in v22. `publish` coverage increased 56→69. `propose` dropped 15→14 (one irreparable example removed during compile verification).
+
+> **⚠ Two metrics appear to worsen but are measurement artifacts:**
+> - **PolicyId wrong module (380→403):** new v3-compat examples include correction patterns that intentionally contain the wrong import as the "before" side.
+> - **Truncated outputs (19→44):** `migrate_dataset_to_v3.py` stripped markdown fences. The truncation heuristic checks the last character (`}`, `)`, etc.) — after fence-stripping some outputs end with a character not in the expected set. These are not actually truncated.
+
+#### What `migrate_dataset_to_v3.py` changed
+
 - `pub type` fix: all user-defined types used in handler signatures wrapped with `pub`
 - API renames: `assets.lovelace` → `assets.lovelace_of`, removed `assets.restricted_to`
 - Auto-imports: added missing `use cardano/transaction.{OutputReference}`, `use cardano/assets.{PolicyId}` where needed
 - Certificate field renames: `at_epoch` field updates
 - Stripped markdown fences from outputs (model should output raw code, not fenced blocks)
 
-**What `regenerate_failing.py` did:**
+#### What `regenerate_failing.py` did
+
 - Compiled every example from `correction_set` and `generated_governance_v1` individually via `aiken check`
 - Sent failing examples (broken code + compiler error) to Claude API for correction
 - 3 retry attempts per example, feeding the latest error back on each retry
 - Replaced failing outputs with verified compilable versions
-- 1 example from `generated_governance_v1` ([3309] — propose validator with complex ProposalProcedure pattern-match) failed all attempts and was deleted
+- 1 example from `generated_governance_v1` ([3309] — propose validator with complex `ProposalProcedure` pattern-match) failed all attempts and was deleted
 
 ---
 
