@@ -146,6 +146,21 @@ RENAMES = [
     # Ref: RetireStakePool { stake_pool: StakePoolId, at_epoch: Int }
     # LLMs hallucinate `id` for the pool id field.
     (r'\bRetireStakePool\s*\{\s*id\b',  'RetireStakePool { stake_pool', 'RetireStakePool.id→stake_pool'),
+
+    # ── aiken/math/rational function names ───────────────────────────────────
+    # Ref: https://github.com/aiken-lang/stdlib/blob/main/lib/aiken/math/rational.ak
+    # LLMs hallucinate several function names that don't exist.
+    (r'\brational\.to_int\b',     'rational.truncate', 'rational.to_int→rational.truncate'),
+    (r'\brational\.to_float\b',   'rational.truncate', 'rational.to_float→rational.truncate'),
+    (r'\brational\.from_ratio\b', 'rational.new',      'rational.from_ratio→rational.new'),
+    (r'\brational\.divide\b',     'rational.div',      'rational.divide→rational.div'),
+    (r'\brational\.multiply\b',   'rational.mul',      'rational.multiply→rational.mul'),
+    (r'\brational\.subtract\b',   'rational.sub',      'rational.subtract→rational.sub'),
+    (r'\brational\.gte\b',        'rational.compare_with(>=)', 'rational.gte→rational.compare_with'),
+    (r'\brational\.lte\b',        'rational.compare_with(<=)', 'rational.lte→rational.compare_with'),
+    (r'\brational\.gt\b',         'rational.compare_with(>)',  'rational.gt→rational.compare_with'),
+    (r'\brational\.lt\b',         'rational.compare_with(<)',  'rational.lt→rational.compare_with'),
+    (r'\brational\.value\b',      'rational.truncate', 'rational.value→rational.truncate'),
 ]
 
 
@@ -255,6 +270,151 @@ def fix_certificate_fields(code: str) -> tuple[str, int]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Fix 6 — Auto-add missing imports
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Map: type name → (module, exported_as)
+# Only types that are unambiguous — one canonical home in stdlib v3.
+# Ref: https://github.com/aiken-lang/stdlib/tree/main/lib
+_TYPE_IMPORTS = {
+    # cardano/transaction
+    "Transaction":       "cardano/transaction",
+    "OutputReference":   "cardano/transaction",
+    "Input":             "cardano/transaction",
+    "Output":            "cardano/transaction",
+    "InlineDatum":       "cardano/transaction",
+    "Redeemer":          "cardano/transaction",
+    "ScriptPurpose":     "cardano/transaction",
+    "ValidityRange":     "cardano/transaction",
+    # cardano/assets
+    "PolicyId":          "cardano/assets",
+    "AssetName":         "cardano/assets",
+    "Lovelace":          "cardano/assets",
+    "Value":             "cardano/assets",
+    # cardano/address
+    "Credential":        "cardano/address",
+    "Address":           "cardano/address",
+    "VerificationKey":   "cardano/address",
+    "Script":            "cardano/address",
+    # cardano/certificate
+    "Certificate":       "cardano/certificate",
+    # cardano/governance
+    "ProposalProcedure": "cardano/governance",
+    "Voter":             "cardano/governance",
+    "GovernanceAction":  "cardano/governance",
+    # aiken/crypto
+    "VerificationKeyHash": "aiken/crypto",
+    "ScriptHash":          "aiken/crypto",
+    "Blake2b_224":         "aiken/crypto",
+    "Blake2b_256":         "aiken/crypto",
+    # aiken/collection/dict
+    "Dict":              "aiken/collection/dict",
+    # aiken/interval
+    "Interval":          "aiken/interval",
+    "IntervalBound":     "aiken/interval",
+    "Finite":            "aiken/interval",
+    # aiken/math/rational
+    "Rational":          "aiken/math/rational",
+}
+
+# Modules that export via a namespace alias in imports
+# e.g. `use aiken/math/rational` → rational.new(...)
+# These don't need {Type} imports — the module itself is the namespace.
+_MODULE_ALIASES = {
+    "aiken/math/rational": "rational",
+    "aiken/interval":      "interval",
+    "aiken/collection/dict": "dict",
+    "aiken/collection/list": "list",
+}
+
+
+def fix_missing_imports(code: str) -> tuple[str, int]:
+    """
+    For each type in _TYPE_IMPORTS, if the type is used in the code but
+    not yet imported, add the missing import line.
+
+    Only adds imports when the output looks like Aiken code (has 'validator'
+    or starts with 'use'). Skips prose.
+    """
+    # Only process code files
+    stripped = code.strip()
+    if not (stripped.startswith("use ") or "validator" in stripped or stripped.startswith("pub ")):
+        return code, 0
+
+    # Collect already-imported names
+    import_re = re.compile(r'^use\s+([\w/]+)(?:\.\{([^}]+)\})?', re.MULTILINE)
+    already_imported_types: set[str] = set()
+    already_imported_modules: set[str] = set()
+
+    for m in import_re.finditer(code):
+        mod = m.group(1)
+        already_imported_modules.add(mod)
+        if m.group(2):
+            for name in m.group(2).split(","):
+                already_imported_types.add(name.strip())
+
+    # Find which module-alias imports are missing (e.g. list.has → need 'use aiken/collection/list')
+    missing_modules: list[str] = []
+    for module, alias in _MODULE_ALIASES.items():
+        if module not in already_imported_modules:
+            # Check if the alias is used as a namespace (alias.something)
+            if re.search(r'\b' + re.escape(alias) + r'\.', code):
+                missing_modules.append(module)
+
+    # Find which types are used but not imported
+    missing: dict[str, list[str]] = {}  # module → [types]
+    for type_name, module in _TYPE_IMPORTS.items():
+        if type_name in already_imported_types:
+            continue
+        if module in already_imported_modules and not m.group(2):
+            continue  # module imported without destructuring — assume all available
+        # Check if type name appears as a word boundary in the code
+        if re.search(r'\b' + re.escape(type_name) + r'\b', code):
+            missing.setdefault(module, []).append(type_name)
+
+    if not missing and not missing_modules:
+        return code, 0
+
+    # Build import lines to add
+    new_imports = []
+    for module in missing_modules:
+        new_imports.append(f"use {module}")
+    for module, types in sorted(missing.items()):
+        # Check if module already imported (just missing the type in destructure)
+        if module in already_imported_modules:
+            # Add types to existing import line
+            def add_to_existing(m, module=module, types=types):
+                if m.group(1) == module:
+                    existing = [t.strip() for t in (m.group(2) or "").split(",") if t.strip()]
+                    merged = sorted(set(existing + types))
+                    return f"use {module}.{{{', '.join(merged)}}}"
+                return m.group(0)
+            code = import_re.sub(add_to_existing, code)
+        else:
+            new_imports.append(f"use {module}.{{{', '.join(sorted(types))}}}")
+
+    if not new_imports:
+        return code, len(missing) + len(missing_modules)
+
+    # Insert new imports after existing use block (or at top if none)
+    last_use = -1
+    for m in import_re.finditer(code):
+        last_use = m.end()
+
+    insert_block = "\n".join(new_imports) + "\n"
+    if last_use >= 0:
+        # Find end of that line
+        eol = code.find("\n", last_use)
+        if eol == -1:
+            eol = len(code)
+        code = code[:eol + 1] + insert_block + code[eol + 1:]
+    else:
+        code = insert_block + code
+
+    return code, sum(len(v) for v in missing.values())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Apply all fixes to one example
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -271,6 +431,7 @@ def migrate_example(ex: dict) -> tuple[dict, dict]:
     output, n_time      = fix_time_module(output)
     output, n_pub       = fix_private_type_leak(output)
     output, n_cert      = fix_certificate_fields(output)
+    output, n_imports   = fix_missing_imports(output)
 
     if n_commas:
         report["commas_added"] = n_commas
@@ -282,6 +443,8 @@ def migrate_example(ex: dict) -> tuple[dict, dict]:
         report["type_made_pub"] = n_pub
     if n_cert:
         report["cert_field_renamed"] = n_cert
+    if n_imports:
+        report["imports_added"] = n_imports
 
     new_ex = {**ex, "output": output}
     return new_ex, report
