@@ -839,18 +839,20 @@ Results are saved per model to `eval_results/` and excluded from git (see `.giti
 
 > **Note on benchmark history:** Early runs of v2–v5 used a generic 4-line system prompt instead of the full training system prompt. Those results (7%, 13%, 13%, 20%) were completely wrong — artifacts of inference/training prompt mismatch, not of model quality. The table below uses the correct system prompt for all models.
 
-| Model | Dataset | Best ckpt (steps) | Pass | Score | Δ vs prev |
-|-------|---------|-------------------|------|-------|-----------|
-| qwen2.5-coder-7b (base) | — | — | 0/15 | 0% | — |
-| gemma-4-e4b (base) | — | — | 5/15 | 33% | +33% |
-| cardano-dev v1 | early | ~700 | 11/15 | 73% | +40% |
-| cardano-dev v2 | v13 | ~300 | 10/15 | 67% | −7% |
-| cardano-dev v3 | v13 | ~300 | 12/15 | 80% | +13% |
-| cardano-dev v4 | v14 | ~300 | 13/15 | 87% | +7% |
-| cardano-dev v5 | v20 | ~300 (wrong ckpt) | 14/15 | 93% | +7% |
-| cardano-dev v6 | v20 | ~200 (best ckpt) | 14/15 | 93% | 0% · compile 10/15 |
-| cardano-dev v7 | v21 | ~300 (early stop) | 14/15 | 93% | 0% · compile 9/15 (60%) |
-| **cardano-dev v8** | **v22** | **~300 (early stop)** | **15/15** | **100%** | **+7% · compile 10/15 (67%)** |
+| Model | Dataset | Examples | Best ckpt (steps) | Heuristic | Score | Δ | Compile |
+|-------|---------|----------|-------------------|-----------|-------|---|---------|
+| qwen2.5-coder-7b (base) | — | — | — | 0/15 | 0% | — | — |
+| gemma-4-e4b (base) | — | — | — | 5/15 | 33% | +33% | — |
+| cardano-dev v1 | early | — | ~700 | 11/15 | 73% | +40% | — |
+| cardano-dev v2 | v13 | — | ~300 | 10/15 | 67% | −7% | — |
+| cardano-dev v3 | v13 | — | ~300 | 12/15 | 80% | +13% | — |
+| cardano-dev v4 | v14 | — | ~300 | 13/15 | 87% | +7% | — |
+| cardano-dev v5 | v20 | 3,319 | ~300 (wrong ckpt) | 14/15 | 93% | +7% | — |
+| cardano-dev v6 | v20 | 3,319 | ~200 (best ckpt) | 14/15 | 93% | 0% | 10/15 (67%) |
+| cardano-dev v7 | v21 | 3,401 | ~300 (early stop) | 14/15 | 93% | 0% | 9/15 (60%) |
+| **cardano-dev v8** | **v22** | **3,474** | **~300 (early stop)** | **15/15** | **100%** | **+7%** | **10/15 (67%)** |
+
+> Compile score introduced in v6. `—` = not measured. Heuristic = string-based checks. Compile = `aiken check` via sandbox.
 
 ### By category
 
