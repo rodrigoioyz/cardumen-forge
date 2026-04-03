@@ -10,9 +10,10 @@ from pathlib import Path
 from collections import Counter
 
 DATASETS = [
-    ("v21",  "data/processed/dataset_v20_reviewed.jsonl.v21_backup"),
-    ("v22-pre", "data/processed/dataset_v22.jsonl.v21_backup"),
-    ("v22",  "data/processed/dataset_v22.jsonl"),
+    ("v14",     "data/processed/archive/dataset_v14_train_split.jsonl"),
+    ("v19",     "data/processed/archive/dataset_v19_dedup.jsonl"),
+    ("v21",     "data/processed/dataset_v20_reviewed.jsonl.v21_backup"),
+    ("v22",     "data/processed/dataset_v22.jsonl"),
 ]
 
 HANDLERS = ["spend(", "mint(", "withdraw(", "publish(", "vote(", "propose("]
@@ -42,21 +43,35 @@ def analyze(path):
     truncated = sum(1 for o in outputs
                     if o.strip() and o.strip()[-1] not in '.`})\n"\'')
 
+    # v22-era: stdlib v3 migration quality
+    old_lovelace    = sum(1 for o in outputs if re.search(r'assets\.lovelace\b(?!_of)', o))
+    banned_patterns = sum(1 for o in outputs if any(p in o for p in [
+        "list.has_any", "transaction.signatories", "output.value.lovelace",
+        "interval.is_after", "interval.is_before",
+        "use cardano/governance/transaction",
+    ]))
+    has_pub_type    = sum(1 for o in outputs if "pub type" in o)
+    markdown_fences = sum(1 for o in outputs if o.strip().startswith("```"))
+
     # Status distribution
     statuses = Counter(d.get("review_status", "?") for d in data)
 
     return {
-        "total":         total,
-        "fn_handlers":   fn_handlers,
-        "dot_imports":   dot_imports,
-        "wrong_cred":    wrong_cred,
-        "wrong_pid":     wrong_pid,
-        "handlers":      handler_counts,
-        "has_validator": has_validator,
-        "has_else":      has_else,
-        "sig_check":     sig_check,
-        "truncated":     truncated,
-        "statuses":      dict(statuses),
+        "total":          total,
+        "fn_handlers":    fn_handlers,
+        "dot_imports":    dot_imports,
+        "wrong_cred":     wrong_cred,
+        "wrong_pid":      wrong_pid,
+        "handlers":       handler_counts,
+        "has_validator":  has_validator,
+        "has_else":       has_else,
+        "sig_check":      sig_check,
+        "truncated":      truncated,
+        "old_lovelace":   old_lovelace,
+        "banned_patterns":banned_patterns,
+        "has_pub_type":   has_pub_type,
+        "markdown_fences":markdown_fences,
+        "statuses":       dict(statuses),
     }
 
 def pct(n, total):
@@ -119,9 +134,16 @@ def main():
         print()
 
     print(f"\n  ── QUALITY SIGNALS ──")
-    row("Has validator block",        "has_validator", "high")
-    row("Has else(_) fallback",       "has_else",      "high")
-    row("Uses extra_signatories",     "sig_check",     None)
+    row("Has validator block",        "has_validator",  "high")
+    row("Has else(_) fallback",       "has_else",       "high")
+    row("Uses extra_signatories",     "sig_check",      None)
+
+    print(f"\n  ── V3 MIGRATION (lower = better) ──")
+    row("Old assets.lovelace (not _of)", "old_lovelace",    "low")
+    row("Banned hallucination patterns", "banned_patterns", "low")
+    row("Markdown fences in output",     "markdown_fences", "low")
+    print(f"\n  ── V3 MIGRATION (higher = better) ──")
+    row("Has pub type declaration",      "has_pub_type",    "high")
 
     print(f"\n  ── STATUS DISTRIBUTION ──")
     all_statuses = set()

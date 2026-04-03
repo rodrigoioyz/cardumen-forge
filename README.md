@@ -468,46 +468,51 @@ Key results: `fn` prefix (21.5% → 0%) was the root cause of v2–v4 failures. 
 
 ### Measured improvement (v20 → v22)
 
-The v20→v22 cycle focused on stdlib v3 compatibility and compile verification rather than example count. `scripts/compare_datasets.py` output (v20=3,319 file no longer on disk; v21 is the earliest available backup):
+The v20→v22 cycle focused on stdlib v3 compatibility and compile verification rather than example count. `scripts/compare_datasets.py` output (v20=3,319 file no longer on disk; v21 is the earliest available backup). The script now includes v3-migration metrics that were not tracked in earlier cycles:
 
 ```
-  Metric                                           v21              v22
-  ──────────────────────────────────────────────────────────────────────
+  Metric                                           v14              v19              v21              v22
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-  Total examples                                 3,401            3,474
+  Total examples                                 3,363            3,406            3,401            3,474
 
   ── SYNTAX ERRORS (lower = better) ──
-  fn prefix in handlers                      0 ( 0.0%)        0 ( 0.0%)
-  Dot-style imports                         16 ( 0.5%)   ✅   11 ( 0.3%)
-  Wrong Credential names                     2 ( 0.1%)   ✅    1 ( 0.0%)
-  PolicyId wrong module                    380 (11.2%)      403 (11.6%)  ⚠
-  Truncated outputs                         19 ( 0.6%)       44 ( 1.3%)  ⚠
+  fn prefix in handlers                    723 (21.5%)   ✅    0 ( 0.0%)        0 ( 0.0%)        0 ( 0.0%)
+  Dot-style imports                         17 ( 0.5%)        16 ( 0.5%)        16 ( 0.5%)   ✅   11 ( 0.3%)
+  Wrong Credential names                     2 ( 0.1%)         2 ( 0.1%)         2 ( 0.1%)   ✅    1 ( 0.0%)
+  PolicyId wrong module                    438 (13.0%)       446 (13.1%)   ✅  380 (11.2%)      403 (11.6%)  ⚠
+  Truncated outputs                         61 ( 1.8%)   ✅   23 ( 0.7%)   ✅   19 ( 0.6%)       44 ( 1.3%)  ⚠
 
   ── COVERAGE (higher = better) ──
-  Handler: spend(                         1027 (30.2%)     1074 (30.9%)
-  Handler: mint(                           354 (10.4%)      368 (10.6%)
-  Handler: withdraw(                       124 ( 3.6%)      127 ( 3.7%)
-  Handler: publish(                         56 ( 1.6%)   ✅   69 ( 2.0%)
-  Handler: vote(                            58 ( 1.7%)       58 ( 1.7%)
-  Handler: propose(                         15 ( 0.4%)       14 ( 0.4%)
+  Handler: spend(                          948 (28.2%)       978 (28.7%)      1027 (30.2%)      1074 (30.9%)
+  Handler: publish(                         35 ( 1.0%)        56 ( 1.6%)        56 ( 1.6%)   ✅   69 ( 2.0%)
+  Handler: vote(                            36 ( 1.1%)        58 ( 1.7%)        58 ( 1.7%)        58 ( 1.7%)
+  Handler: propose(                          0 ( 0.0%)        15 ( 0.4%)        15 ( 0.4%)        14 ( 0.4%)
 
   ── QUALITY SIGNALS ──
-  Has validator block                     1899 (55.8%)     1970 (56.7%)
-  Has else(_) fallback                     221 ( 6.5%)      220 ( 6.3%)
-  Uses extra_signatories                   749 (22.0%)      814 (23.4%)
+  Has validator block                     1825 (54.3%)      1895 (55.6%)      1899 (55.8%)   ✅ 1970 (56.7%)
+  Has else(_) fallback                     157 ( 4.7%)   ✅  241 ( 7.1%)       221 ( 6.5%)      220 ( 6.3%)
+  Uses extra_signatories                   684 (20.3%)       718 (21.1%)       749 (22.0%)      814 (23.4%)
+
+  ── V3 MIGRATION (lower = better) ──
+  Banned hallucination patterns             19 ( 0.6%)        19 ( 0.6%)        19 ( 0.6%)   ✅    4 ( 0.1%)
+  Markdown fences in output                567 (16.9%)       562 (16.5%)       497 (14.6%)   ✅    0 ( 0.0%)
+
+  ── V3 MIGRATION (higher = better) ──
+  Has pub type declaration                 675 (20.1%)       686 (20.1%)       685 (20.1%)   ✅ 1022 (29.4%)
 
   ── STATUS DISTRIBUTION ──
-  CORRECTION                                78 ( 2.3%)       78 ( 2.2%)
-  PLAUSIBLE_NEEDS_CHECK                   1052 (30.9%)     1052 (30.3%)
-  VERIFIED_V3                                0 ( 0.0%)   ✅   74 ( 2.1%)
-  VERIFIED_V3_ALIGNED                     2271 (66.8%)     2270 (65.3%)
+  CORRECTION                                78 ( 2.3%)        78 ( 2.3%)        78 ( 2.3%)       78 ( 2.2%)
+  PLAUSIBLE_NEEDS_CHECK                   1500 (44.6%)      1490 (43.7%)      1052 (30.9%)     1052 (30.3%)
+  VERIFIED_V3                                0 ( 0.0%)         0 ( 0.0%)         0 ( 0.0%)   ✅   74 ( 2.1%)
+  VERIFIED_V3_ALIGNED                     1785 (53.1%)      1838 (54.0%)      2271 (66.8%)     2270 (65.3%)
 ```
 
-Key results: `VERIFIED_V3` (74) is the new `v3_compat_examples` source added in v22. `publish` coverage increased 56→69. `propose` dropped 15→14 (one irreparable example removed during compile verification).
+Key results of the v22 migration cycle: **markdown fences 497→0** (all stripped), **pub type 685→1022** (+337 examples migrated to correct `pub type` syntax), **banned patterns 19→4** (hallucination targets largely eliminated). `VERIFIED_V3` (74) is the new `v3_compat_examples` source. `publish` coverage 56→69.
 
-> **⚠ Two metrics appear to worsen but are measurement artifacts:**
-> - **PolicyId wrong module (380→403):** new v3-compat examples include correction patterns that intentionally contain the wrong import as the "before" side.
-> - **Truncated outputs (19→44):** `migrate_dataset_to_v3.py` stripped markdown fences. The truncation heuristic checks the last character (`}`, `)`, etc.) — after fence-stripping some outputs end with a character not in the expected set. These are not actually truncated.
+> **⚠ Two legacy metrics appear to worsen but are measurement artifacts:**
+> - **PolicyId wrong module (380→403):** new v3-compat examples include correction patterns that intentionally use the wrong import as the "before" side.
+> - **Truncated outputs (19→44):** the truncation heuristic checks the last character (`}`, `)`, etc.) — after markdown fence stripping, some outputs end with a newline or identifier not in the expected set. These are not actually truncated.
 
 #### What `migrate_dataset_to_v3.py` changed
 
