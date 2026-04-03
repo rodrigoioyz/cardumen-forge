@@ -1,0 +1,105 @@
+# Regenerate report — correction_set
+
+- ✅ [0] Fix this Aiken v3 error: transaction.signatories called instead of self.extra_si
+- ✅ [1] Fix this Aiken v3 error: using transaction.signatories(tx) for signature check
+- ✅ [2] Fix this Aiken v3 error: transaction.signatories used in multi-sig validator
+- ✅ [3] Fix this Aiken v3 error: list.has_any does not exist
+- ✅ [4] Fix this Aiken v3 error: list.has_any called with two lists
+- ✅ [5] Fix this Aiken v3 error: list.has_any used to check signatories overlap
+- ✅ [6] Fix this Aiken v3 error: list.has_any replacing list.any with lambda
+- ✅ [7] Fix this Aiken v3 error: list.has_any used in helper function
+- ✅ [8] Fix this Aiken v3 error: output.value.lovelace field does not exist
+- ✅ [9] Fix this Aiken v3 error: value.lovelace used instead of assets.lovelace_of
+- ✅ [10] Fix this Aiken v3 error: output.value.lovelace in fee comparison
+- ✅ [11] Fix this Aiken v3 error: value.lovelace accessed on multiple outputs
+- ✅ [12] Fix this Aiken v3 error: missing validator wrapper around spend and withdraw han
+- ✅ [13] Fix this Aiken v3 error: validator keyword missing, script uses module fn syntax
+- ✅ [14] Fix this Aiken v3 error: interval.is_after called with wrong argument order
+- ✅ [15] Fix this Aiken v3 error: interval.is_after used instead of interval.is_entirely_
+- ✅ [16] Fix this Aiken v3 error: interval.is_after with tx.validity_range instead of sel
+- ✅ [17] Fix this Aiken v3 error: dot-style import for Transaction
+- ✅ [18] Fix this Aiken v3 error: dot-style cardano.transaction import in a spend validat
+- ✅ [19] Fix this Aiken v3 error: use cardano/governance/transaction does not exist
+- ✅ [20] Fix this Aiken v3 error: use cardano/governance/transaction alongside interval
+- ✅ [21] Fix this Aiken v3 error: tx.validity_range instead of self.validity_range
+- ✅ [22] Fix this Aiken v3 error: ctx.transaction.validity_range instead of self.validity
+- ✅ [23] Fix this Aiken v3 error: tx.validity_range in a simple deadline check
+- ✅ [24] Fix this Aiken v3 error: assets.quantity_of called with reversed policy_id and a
+- ✅ [25] Fix this Aiken v3 error: assets.quantity_of called with only policy_id, missing 
+- ✅ [26] Fix this Aiken v3 error: dot-style import and tx.validity_range used together
+- ✅ [27] Fix this Aiken v3 error: governance module import with interval.is_after
+- ✅ [28] Fix this Aiken v3 error: assets.quantity_of missing asset_name combined with dot
+- ✅ [29] Fix this Aiken v3 error: all five anti-patterns combined in one validator
+- ✅ [92] Write an Aiken v3 mint validator for a whitelist-gated NFT drop where the minter
+- ✅ [96] Write an Aiken v3 spend validator for a smart contract upgrade that requires an 
+- ✅ [98] Write an Aiken v3 withdraw validator requiring 2-of-3 treasury managers to appro
+- ✅ [99] Write an Aiken v3 mint validator for a token migration that requires both the ol
+- ✅ [100] Write a spend validator that ensures the output sent back to the script contains
+- ✅ [101] Write a mint policy that checks each minted token quantity does not exceed 100.
+- ✅ [102] Write a spend validator that gates access to a UTxO unless the transaction input
+- ✅ [104] Write a mint policy that allows burning tokens (negative quantity) but never min
+- ✅ [105] Write a spend validator that ensures the script input holds exactly 1 of a gover
+- ✅ [106] Write a mint policy that mints exactly 1 NFT per transaction, identified by a fi
+- ✅ [107] Write a spend validator that checks two different token types are both present i
+- ✅ [109] Write a mint policy that checks the quantity of two different asset names under 
+- ✅ [110] Write a withdraw validator that ensures the staking reward withdrawal is accompa
+- ✅ [112] Write a mint policy that prevents minting more than 1000 of a fungible token in 
+- ✅ [113] Write a spend validator that ensures the redeemer's claimed lovelace amount matc
+- ✅ [115] Write a mint policy that mints a token only if the total lovelace across all out
+- ✅ [117] Write a mint policy that allows minting only if a specific NFT (policy + asset n
+- ✅ [119] Write a spend validator that confirms a staking NFT (membership token) exists in
+- ✅ [120] Write a mint policy that enforces a 50/50 mint ratio between two asset names und
+- ✅ [121] Write a spend validator with a datum-encoded minimum ADA that validates the inpu
+- ✅ [122] Write a spend validator that checks a multi-asset input holds at least 500 of a 
+- ✅ [123] Write a mint policy that allows minting a reward token only when a specific NFT 
+- ✅ [124] Write a spend validator that counts how many outputs carry an NFT from a specifi
+- ✅ [125] Write an Aiken v3 spend validator that allows spending only after a deadline usi
+- ✅ [126] Write an Aiken v3 spend validator that allows spending only before an expiry usi
+- ✅ [127] Write an Aiken v3 mint validator that only allows minting within a specific time
+- ✅ [128] Write an Aiken v3 spend validator for a vesting contract that releases funds aft
+- ✅ [129] Write an Aiken v3 withdraw validator that only permits withdrawal after a lockup
+- ✅ [130] Write an Aiken v3 mint validator that forbids minting after a sale end time usin
+- ✅ [131] Write an Aiken v3 spend validator for an escrow that releases only after an agre
+- ✅ [133] Write an Aiken v3 spend validator using a wrong import style (dot instead of sla
+- ✅ [134] Write an Aiken v3 mint validator for an event-gated NFT drop that can only mint 
+- ✅ [135] Write an Aiken v3 withdraw validator that only allows reward withdrawal before a
+- ✅ [137] Write an Aiken v3 spend validator for a DAO treasury that can only be spent afte
+- ✅ [138] Write an Aiken v3 spend validator for a time-locked savings contract that combin
+- ✅ [140] Write an Aiken v3 spend validator that enforces a cooldown period by ensuring a 
+- ✅ [141] Write an Aiken v3 mint validator for a whitelist presale that only allows mintin
+- ✅ [142] Write an Aiken v3 spend validator for an insurance payout that releases funds be
+- ✅ [143] Write an Aiken v3 withdraw validator for a staking pool that enforces a minimum 
+- ✅ [144] Write an Aiken v3 spend validator for a futures contract that settles only after
+- ✅ [145] Write an Aiken v3 spend validator for a time-released grant that checks the gran
+- ✅ [146] Write an Aiken v3 spend validator for a competition prize that can only be claim
+- ✅ [148] Write an Aiken v3 mint validator that uses list.any to check at least one admin 
+- ✅ [153] Write an Aiken v3 spend validator that reads a price datum from a reference inpu
+- ✅ [155] Write an Aiken v3 withdraw validator that uses list.all to confirm every extra s
+- ✅ [156] Write an Aiken v3 validator that uses list.count to count how many outputs go to
+- ✅ [157] Write an Aiken v3 mint validator that reads a config datum from a reference inpu
+- ✅ [158] Write an Aiken v3 validator that uses list.filter followed by list.length to cou
+- ✅ [162] Write an Aiken v3 validator that reads a governance threshold from a reference i
+- ✅ [164] Write an Aiken v3 withdraw validator that reads a fee rate from a reference inpu
+- ✅ [168] Write an Aiken v3 mint validator that reads an allowlist from a reference input 
+- ✅ [169] What is the correct import for the assets module in Aiken v3?
+- ✅ [170] What is the correct import for the transaction module in Aiken v3?
+- ✅ [171] What is the correct import for the interval module in Aiken v3?
+- ✅ [172] What is the correct import for the list module in Aiken v3?
+- ✅ [173] What is the correct import for VerificationKeyHash in Aiken v3?
+- ✅ [174] What is the correct way to import both the assets and transaction modules togeth
+- ✅ [175] What is the correct import when you need both VerificationKeyHash and Hash from 
+- ✅ [176] What is the correct import path for the list module, and why is 'aiken/list' wro
+- ✅ [177] What is the correct way to alias the transaction module in Aiken v3?
+- ✅ [178] What is the correct import when you need PolicyId from the transaction module?
+- ✅ [179] Fix this incorrect import: use cardano.assets
+- ✅ [180] Fix this incorrect import: use cardano.transaction.{Transaction}
+- ✅ [181] Fix this incorrect import: use aiken.interval
+- ✅ [182] Fix this incorrect import: use aiken/list
+- ✅ [183] Fix this incorrect import: use cardano/assets/{Assets}
+- ✅ [184] Fix this incorrect import: use cardano/governance/transaction
+- ✅ [185] Fix this incorrect import: use aiken.crypto.{VerificationKeyHash}
+- ✅ [186] Fix this incorrect import: use cardano.transaction as tx
+- ✅ [187] Fix this incorrect import: use aiken/collection.list
+- ✅ [190] Write a short Aiken v3 validator that checks an NFT is present in an output valu
+- ✅ [193] Write a short Aiken v3 validator that checks the lovelace value in outputs, usin
+- ✅ [195] Write a short Aiken v3 validator combining assets and list modules, using correc

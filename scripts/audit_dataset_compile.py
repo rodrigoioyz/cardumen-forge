@@ -47,8 +47,10 @@ def compile_check(code: str) -> dict:
         import pty, select
 
         master_fd, slave_fd = pty.openpty()
+        aiken_bin = os.path.expanduser("~/.aiken/bin/aiken")
+        aiken_cmd = aiken_bin if os.path.exists(aiken_bin) else "aiken"
         proc = subprocess.Popen(
-            ["aiken", "check"],
+            [aiken_cmd, "check"],
             cwd=SANDBOX_DIR,
             stdin=slave_fd,
             stdout=slave_fd,

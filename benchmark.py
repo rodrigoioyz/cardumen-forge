@@ -65,13 +65,18 @@ MODELS = [
     },
     {
         "label":       "cardano-dev v6 (dataset v20, best ckpt)",
-        "lm_name":     "lmstudio-community/aiken_expert/cardano-dev-6.0-v20-q4_k_m.gguf",
+        "lm_name":     "lmstudio-community/aiken_expert/cardano-dev 6.0 qwen3.5-4b.q4_k_m.gguf",
         "version":     "v6",
     },
     {
         "label":       "cardano-dev v7 (dataset v21, best ckpt)",
-        "lm_name":     "lmstudio-community/aiken_expert/cardano-dev-7.0-v21-q4_k_m.gguf",
+        "lm_name":     "lmstudio-community/aiken_expert/cardano-dev 7.0  qwen3.5-4b.q4_k_m.gguf",
         "version":     "v7",
+    },
+    {
+        "label":       "cardano-dev v8 (dataset v22, best ckpt)",
+        "lm_name":     "lmstudio-community/aiken_expert/cardano-dev 8.0  qwen3.5-4b.q4_k_m.gguf",
+        "version":     "v8",
     },
 ]
 
@@ -276,8 +281,10 @@ def compile_check(code: str) -> dict:
     try:
         import pty, select, io
         master_fd, slave_fd = pty.openpty()
+        aiken_bin = os.path.expanduser("~/.aiken/bin/aiken")
+        aiken_cmd = aiken_bin if os.path.exists(aiken_bin) else "aiken"
         proc = subprocess.Popen(
-            ["aiken", "check"],
+            [aiken_cmd, "check"],
             cwd=SANDBOX_DIR,
             stdin=slave_fd,
             stdout=slave_fd,
