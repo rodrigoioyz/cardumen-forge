@@ -887,15 +887,20 @@ python3 benchmark.py --compare-only
 
 ```python
 MODELS = [
-    { "label": "qwen2.5-coder-7b (base)",       "lm_name": "qwen2.5-coder-7b-instruct",                                                    "version": "base" },
-    { "label": "cardano-dev v1",                 "lm_name": "lmstudio-community/aiken_expert/cardano-dev qwen3.5-4b.q4_k_m.gguf",           "version": "v1"   },
-    { "label": "cardano-dev v2 (dataset v13)",   "lm_name": "lmstudio-community/aiken_expert/cardano-dev 2.0 qwen3.5-4b.q4_k_m (1).gguf",  "version": "v2"   },
-    { "label": "cardano-dev v3 (dataset v14)",   "lm_name": "lmstudio-community/aiken_expert/cardano-dev 3.0 qwen3.5-4b.q4_k_m (2).gguf",  "version": "v3"   },
-    { "label": "cardano-dev v4 (dataset v14, run 2)", "lm_name": "lmstudio-community/aiken_expert/cardano-dev 4.0 qwen3.5-4b.q4_k_m (3).gguf", "version": "v4" },
+    { "label": "qwen2.5-coder-7b (base)",              "lm_name": "qwen2.5-coder-7b-instruct",     "version": "base"   },
+    { "label": "gemma-4-e4b (base)",                   "lm_name": "google_gemma-4-e4b-it",         "version": "gemma4" },
+    { "label": "cardano-dev v1",                       "lm_name": "cardano-dev qwen3.5-4b.q4_k_m", "version": "v1"     },
+    { "label": "cardano-dev v2 (dataset v13)",         "lm_name": "cardano-dev 2.0 qwen3.5-4b",    "version": "v2"     },
+    { "label": "cardano-dev v3 (dataset v13)",         "lm_name": "cardano-dev 3.0 qwen3.5-4b",    "version": "v3"     },
+    { "label": "cardano-dev v4 (dataset v14)",         "lm_name": "cardano-dev 4.0 qwen3.5-4b",    "version": "v4"     },
+    { "label": "cardano-dev v5 (dataset v20, wrong ckpt)", "lm_name": "cardano-dev 5.0 qwen3.5-4b","version": "v5"     },
+    { "label": "cardano-dev v6 (dataset v20)",         "lm_name": "cardano-dev 6.0 qwen3.5-4b",    "version": "v6"     },
+    { "label": "cardano-dev v7 (dataset v21)",         "lm_name": "cardano-dev 7.0 qwen3.5-4b",    "version": "v7"     },
+    { "label": "cardano-dev v8 (dataset v22)",         "lm_name": "cardano-dev 8.0 qwen3.5-4b",    "version": "v8"     },
 ]
 ```
 
-The exact IDs must match what `curl http://<host>:<port>/v1/models` returns. Partial matching is also supported.
+The `lm_name` values are partial strings — use whatever fragment uniquely identifies your model in `curl http://<host>:<port>/v1/models`. Partial matching is supported.
 
 Results are saved per model to `eval_results/` and excluded from git (see `.gitignore`).
 
