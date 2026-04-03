@@ -89,6 +89,15 @@ RENAMES = [
     (r'\bVerificationKeyCredential\b', 'VerificationKey',        'VerificationKeyCredential→VerificationKey'),
     (r'\bScriptCredential\b',          'Script',                 'ScriptCredential→Script'),
     (r'\bMintedValue\b',               'Value',                  'MintedValue→Value'),
+    # StakeCredential does not exist in stdlib v3 — it was an alias for Credential.
+    # Ref: cardano/address.ak — pub type Credential { VerificationKey(...) | Script(...) }
+    (r'\bStakeCredential\b',           'Credential',             'StakeCredential→Credential'),
+    # After StakeCredential→Credential, fix the import module when it was cardano/assets
+    # Simple string replacements for the two forms that appear in practice
+    (r'use cardano/assets\.\{Credential\}',           'use cardano/address.{Credential}',           'import:cardano/assets.Credential→cardano/address.Credential'),
+    (r'use cardano/assets\.\{([^}]+,\s*)Credential(,\s*[^}]+)?\}',
+     lambda m: 'use cardano/address.{' + m.group(1) + 'Credential' + (m.group(2) or '') + '}',
+     'import:cardano/assets.{..Credential..}→cardano/address'),
     # Interval<X> → Interval (remove generic parameter)
     (r'\bInterval\s*<[^>]+>',          'Interval',               'Interval<T>→Interval'),
 

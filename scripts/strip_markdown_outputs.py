@@ -23,8 +23,13 @@ INPUT_FILE = ROOT / "data" / "processed" / "dataset_v22.jsonl"
 
 
 def strip_markdown(output: str) -> str:
-    """Extract code from a markdown fence if present, otherwise return as-is."""
-    m = re.search(r'```(?:\w+)?\n(.*?)```', output, re.DOTALL)
+    """Extract code from a markdown fence if present, otherwise return as-is.
+    Prefers ```aiken fence; falls back to first fence of any type.
+    """
+    # Try aiken-specific fence first
+    m = re.search(r'```aiken\n(.*?)```', output, re.DOTALL)
+    if not m:
+        m = re.search(r'```(?:\w*)?\n(.*?)```', output, re.DOTALL)
     return m.group(1).strip() if m else output
 
 
@@ -36,6 +41,19 @@ def needs_stripping(output: str) -> bool:
     return bool(re.match(r'\s*```', output))
 
 
+def is_standalone_code_block(output: str) -> bool:
+    """Return True if the embedded aiken fence contains a standalone compilable snippet
+    (has 'validator' keyword or starts with 'use ') — not just a type def or fragment.
+    Used for smart-stripping sources like aiken_design_patterns where prose+code
+    examples exist but only full validators/modules should be extracted.
+    """
+    m = re.search(r'```aiken\n(.*?)```', output, re.DOTALL)
+    if not m:
+        return False
+    code = m.group(1).strip()
+    return 'validator' in code or code.startswith('use ')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run",    action="store_true", help="Report changes without writing")
@@ -45,6 +63,8 @@ def main():
     parser.add_argument("--input",     default=str(INPUT_FILE), help="Input JSONL file")
     parser.add_argument("--force-strip", action="store_true",
                         help="Strip fence even if prose precedes it (use for sources like generated_governance_v1)")
+    parser.add_argument("--smart-strip", action="store_true",
+                        help="Strip prose+fence only when the embedded code block is a standalone validator/module (use for aiken_design_patterns)")
     args = parser.parse_args()
 
     if not args.dry_run and not args.apply:
@@ -80,7 +100,10 @@ def main():
             skipped_count += 1
             continue
 
-        should_strip = args.force_strip and bool(re.search(r'```', output))
+        should_strip = (
+            (args.force_strip and bool(re.search(r'```', output))) or
+            (args.smart_strip and is_standalone_code_block(output))
+        )
         if should_strip or needs_stripping(output):
             stripped = strip_markdown(output)
             if stripped != output:
