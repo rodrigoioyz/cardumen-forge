@@ -254,10 +254,11 @@ def compile_check(code: str) -> dict:
             text=True,
             timeout=60,
         )
+        output = (r.stdout + r.stderr).strip()
         return {
             "pass":    r.returncode == 0,
             "skipped": False,
-            "error":   r.stderr.strip() if r.returncode != 0 else "",
+            "error":   output if r.returncode != 0 else "",
         }
     except FileNotFoundError:
         return {"pass": None, "skipped": True, "error": "aiken not in PATH"}
@@ -350,7 +351,14 @@ def eval_model(client, model_name: str, label: str, skip_compile: bool = False) 
             failed = [k for k, v in checks.items() if not v and k != "pass"]
             print(f"         ↳ failed: {failed}")
         if not skip_compile and not compile["skipped"] and not compile["pass"]:
-            print(f"         ↳ compile error: {compile['error'][:120]}")
+            # Filter out progress lines ("Compiling", "Resolving", "Fetched")
+            # to show only the actual Aiken error
+            error_lines = [
+                l for l in compile["error"].splitlines()
+                if not l.strip().startswith(("Compiling", "Resolving", "Fetched", "Collecting"))
+            ]
+            error_snippet = "\n         ".join(error_lines[:6]).strip()
+            print(f"         ↳ compile error: {error_snippet}")
         if checks["pass"]:
             passed += 1
 

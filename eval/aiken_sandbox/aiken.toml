@@ -1,4 +1,4 @@
-name = "cardumen_sandbox"
+name = "cardumen/sandbox"
 version = "0.0.0"
 compiler = "v1.1.21"
 plutus = "v3"
