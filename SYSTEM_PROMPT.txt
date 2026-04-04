@@ -22,30 +22,63 @@ CUSTOM TYPES — commas required after EVERY field (stdlib v3):
 IMPORTS (slash style — never dot, imports must come first):
   use cardano/assets
   use cardano/transaction.{Transaction, OutputReference}
+  use cardano/address.{Address, Script, Credential}
   use cardano/certificate.{Certificate}
   use cardano/governance.{Voter, ProposalProcedure}
   use aiken/collection/list
   use aiken/collection/dict
   use aiken/interval
+  use aiken/interval.{Finite, IntervalBound}
   use aiken/math/rational
+  use aiken/primitive/bytearray
 
 IMPORT RULES — always include these when using the types:
   Transaction, OutputReference → use cardano/transaction.{Transaction, OutputReference}
+  Input, Output                → add to transaction import: .{Transaction, Input, Output, ...}
   InlineDatum                  → add to transaction import: .{Transaction, OutputReference, InlineDatum}
-  PolicyId                     → use cardano/assets.{PolicyId}  OR prefix as assets.PolicyId
+  PolicyId, AssetName          → use cardano/assets.{PolicyId, AssetName}
+  Address, Script, Credential  → use cardano/address.{Address, Script, Credential}
   Certificate                  → use cardano/certificate.{Certificate}
   Voter, ProposalProcedure     → use cardano/governance.{Voter, ProposalProcedure}
+  Finite, IntervalBound        → use aiken/interval.{Finite, IntervalBound}
 
 VERIFIED API PATTERNS:
-  ADA check  : assets.lovelace_of(output.value) — NEVER output.assets.ada
-  Signatures : list.has(self.extra_signatories, key) — NEVER self.signatures
-  Time       : self.validity_range — type is Interval (NOT Interval<Int>)
-  NFT check  : assets.quantity_of(value, policy_id, asset_name)
-  Inputs     : transaction.find_input(self.inputs, ref)
-  Ref inputs : transaction.find_input(self.reference_inputs, ref)
-  InlineDatum: expect InlineDatum(raw) = output.datum — always import explicitly
-  dict       : dict.to_pairs(d) — NEVER dict.to_list
-  rational   : rational.new(n, d)
+  ADA check    : assets.lovelace_of(output.value) — NEVER output.assets.ada
+  Signatures   : list.has(self.extra_signatories, key) — NEVER self.signatures
+  Time         : self.validity_range — type is Interval (NOT Interval<Int>)
+  NFT check    : assets.quantity_of(value, policy_id, asset_name)
+  Token map    : assets.tokens(value, policy_id) — returns Dict<AssetName, Int>
+  Inputs       : transaction.find_input(self.inputs, ref)
+  Ref inputs   : transaction.find_input(self.reference_inputs, ref)
+  InlineDatum  : expect InlineDatum(raw) = output.datum — always import explicitly
+  dict         : dict.to_pairs(d) — NEVER dict.to_list
+  dict lookup  : dict.get(d, key) — returns Option<value>
+  rational     : rational.new(n, d)
+  bytearray    : bytearray.take(b, n) / bytearray.drop(b, n) / bytearray.concat(a, b)
+
+ORACLE PATTERN (reference input + InlineDatum + staleness):
+  fn get_oracle_input(inputs: List<Input>, policy: PolicyId, asset: AssetName) -> Input {
+    expect Some(oracle_input) = list.find(
+      inputs,
+      fn(i) { assets.quantity_of(i.output.value, policy, asset) == 1 },
+    )
+    oracle_input
+  }
+  -- Read datum:  expect InlineDatum(raw) = oracle_input.output.datum
+  -- Staleness:   expect Finite(now) = self.validity_range.lower_bound.bound_type
+
+CIP-68 LABEL PREFIXES (4-byte prefix on asset name):
+  Label 100 — reference NFT : #"000643b0"
+  Label 222 — user NFT      : #"000de140"
+  Label 333 — fungible token: #"0014df10"
+
+CIP-68 PATTERN (mint validator):
+  let tokens = assets.tokens(self.mint, policy_id)    -- Dict<AssetName, Int>
+  let pairs  = dict.to_pairs(tokens)                   -- Pairs<AssetName, Int>
+  -- Check label:   bytearray.take(name, 4) == #"000de140"
+  -- Strip prefix:  bytearray.drop(name, 4)
+  -- Build ref:     bytearray.concat(#"000643b0", content)
+  -- Lookup ref:    expect Some(ref_qty) = dict.get(tokens, ref_name)
 
 CERTIFICATE constructors (stdlib v3 exact names):
   RegisterCredential, UnregisterCredential, DelegateCredential
