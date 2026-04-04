@@ -1298,7 +1298,7 @@ Fix: corrected the label to `(dataset v13)`. Sounds minor but matters for the co
 
 #### Problem 5 — WSL cannot reach LM Studio at `localhost` or `172.x.x.x`
 
-LM Studio shows its API URL as `http://172.19.48.1:3005` in its UI. That IP is the WSL virtual adapter as seen *from Windows* — the reverse direction. From WSL, the Windows host is not at that address.
+LM Studio shows its API URL as `http://172.xx.xx.x:3005` in its UI. That IP is the WSL virtual adapter as seen *from Windows* — the reverse direction. From WSL, the Windows host is not at that address.
 
 The fix was two steps:
 1. Find the actual gateway: `ip route show default` → `YOUR_GATEWAY_IP`
