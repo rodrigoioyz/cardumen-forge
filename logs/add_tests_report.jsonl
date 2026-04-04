@@ -1,0 +1,1 @@
+{"idx": 3082, "source": "aiken_stdlib", "status": "original_compile_error", "fns": ["positive_mints"], "instruction": "Write an Aiken validator helper that uses `assets.flatten_with` to collect only ", "error": "8;;https://aiken-lang.org/language-tour/primitive-types        Error aiken::check::type_mismatch (link)8;;"}

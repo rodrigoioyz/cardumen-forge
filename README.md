@@ -6,25 +6,25 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 
 **Goal:** Turn a general-purpose code LLM into a domain expert that generates correct, compilable Aiken v3 validators — runnable locally on 6 GB VRAM.
 
+*Cardumen (Spanish): a school of fish — collective movement, no single center, each one navigates but the group has direction. Forge: to build something strong from raw material. Cardumen Forge is about building the tools for anyone to write Cardano smart contracts.*
+
+> **New here?** [Aiken](https://aiken-lang.org) is a functional language for writing Cardano smart contracts. Fine-tuning means taking a general-purpose code model and training it further on domain-specific examples so it specializes. This project does that for Aiken v3 — the result is a small model (~2.5 GB) you can run locally that generates correct Cardano validators instead of hallucinating Haskell or outdated Plutus patterns.
+
+---
+
 > ## Current State — April 2026
 >
 > | | |
 > |---|---|
 > | **Active model** | cardano-dev v8 (trained) · v9 next |
-> | **Active dataset** | dataset_v22.jsonl — 3,473 examples · stdlib v3 migrated · compile-verified (correction_set 100%, governance 100%) |
-> | **Benchmark** | 15 heuristic checks + **real `aiken check` compilation** via PTY sandbox (stdlib v3.0.0) |
-> | **v8 heuristic score** | **15/15 (100%)** — first model to achieve perfect heuristic score |
-> | **v8 compile score** | **10/15 (67%)** · v7 was 9/15 (60%) |
-> | **Active scripts** | `benchmark.py`, `colab_finetune.ipynb`, `scripts/migrate_dataset_to_v3.py`, `scripts/regenerate_failing.py`, `scripts/audit_dataset_compile.py`, `scripts/strip_markdown_outputs.py` |
+> | **Active dataset** | dataset_v22.jsonl — 3,748 examples · stdlib v3 · compile-verified |
+> | **Benchmark** | 15 heuristic checks + **real `aiken check`** via PTY sandbox (stdlib v3.0.0) |
+> | **v8 heuristic** | **15/15 (100%)** — first model to achieve perfect heuristic score |
+> | **v8 compile** | **10/15 (67%)** · v7 was 9/15 (60%) |
 > | **Aiken stdlib** | v3.0.0 · Plutus v3 |
+> | **Scripts** | → [Project Structure](#part-ix--project-structure) |
 >
 > v8 is the first model trained on the fully v3-migrated and compile-verified dataset. It achieved 15/15 (100%) heuristic and 10/15 (67%) compile — both new records. Remaining compile failures: `pub type` leak, `MintedValue` removed constructor, `GovernanceCommittee` wrong name, missing `use aiken/interval`.
-
-*Cardumen (Spanish): a school of fish — collective movement, no single center, each one navigates but the group has direction. Forge: to build something strong from raw material. Cardumen Forge is about building the tools for anyone to write Cardano smart contracts.*
-
----
-
-> **New here?** [Aiken](https://aiken-lang.org) is a functional language for writing Cardano smart contracts. Fine-tuning means taking a general-purpose code model and training it further on domain-specific examples so it specializes. This project does that for Aiken v3 — the result is a small model (~2.5 GB) you can run locally that generates correct Cardano validators instead of hallucinating Haskell or outdated Plutus patterns.
 
 ---
 
@@ -34,24 +34,25 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
   - [Motivation](#motivation)
   - [Why this exists](#why-this-exists)
   - [The model](#the-model)
-- [Part II — Quick Start](#part-ii--quick-start)
-- [Part III — The Dataset](#part-iii--the-dataset)
+- [Part II — Aiken v3 Reference](#part-ii--aiken-v3-reference)
+  - [Handler signatures](#verified-handler-signatures)
+  - [Import style](#verified-import-style-slash-not-dot)
+  - [API patterns](#verified-api-patterns)
+- [Part III — Quick Start](#part-iii--quick-start)
+  - [Path A — Use existing dataset](#path-a--use-existing-dataset-recommended)
+  - [Path B — Rebuild from scratch](#path-b--rebuild-dataset-from-scratch)
+- [Part IV — The Dataset](#part-iv--the-dataset)
   - [Current state (v22)](#current-state-v22--active)
   - [Sources](#sources)
   - [Schema](#schema)
-  - [How the dataset was built](#how-the-dataset-was-built)
   - [Pipeline overview](#pipeline-overview)
-  - [Cleaning pipeline (v14 → v20)](#cleaning-pipeline-v14--v20)
-  - [Measured improvement (v14 → v20)](#measured-improvement-v14--v20)
-  - [Measured improvement (v20 → v22)](#measured-improvement-v20--v22)
-  - [Remaining open issues](#remaining-open-issues)
-  - [v14 composition — historical baseline](#v14-composition--historical-baseline)
-  - [v22 composition — active dataset](#v22-composition--active-dataset)
-- [Part IV — Training](#part-iv--training)
+  - [Dataset version history](#dataset-version-history)
+  - [Fixes applied (v14 → v22)](#fixes-applied-v14--v22)
+  - [Historical details](#how-the-dataset-was-built)
+- [Part V — Training](#part-v--training)
   - [Config history](#config-history)
   - [Critical lessons learned](#critical-lessons-learned)
   - [System prompt](#system-prompt)
-- [Part V — Aiken v3 Reference](#part-v--aiken-v3-reference)
 - [Part VI — Evaluation & Benchmark](#part-vi--evaluation--benchmark)
   - [Evaluation suite](#evaluation-suite--15-prompts)
   - [Benchmark setup & usage](#benchmark-setup--usage)
@@ -59,11 +60,7 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 - [Part VII — Results](#part-vii--results)
   - [Final benchmark table](#final-benchmark-table)
   - [What the numbers say](#what-the-numbers-say)
-  - [The training steps hypothesis](#the-training-steps-hypothesis-and-why-it-was-wrong)
-  - [Historical reference — v11](#historical-reference--v11-model)
 - [Part VIII — Development Log](#part-viii--development-log)
-  - [Problems: dataset generation](#problems-encountered--dataset-generation)
-  - [Problems: benchmark](#problems-encountered--benchmark)
 - [Part IX — Project Structure](#part-ix--project-structure)
 - [Known Limitations](#known-limitations)
 - [References](#references)
@@ -115,7 +112,94 @@ This project builds a dataset grounded in real documentation to fix those failur
 
 ---
 
-## Part II — Quick Start
+## Part II — Aiken v3 Reference
+
+A quick reference card for the patterns the model is trained on. Useful for prompt engineering and for verifying model outputs manually.
+
+### Verified handler signatures
+
+All six Cardano handler purposes are valid. The `fn` keyword **must NOT be used** inside validator blocks — the correct syntax uses the handler name directly. The Aiken v3 compiler rejects `fn spend(` with a parse error.
+
+```aiken
+validator my_contract {
+  spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool {
+    ...
+  }
+  mint(redeemer: T, policy_id: PolicyId, self: Transaction) -> Bool {
+    ...
+  }
+  withdraw(redeemer: T, account: Credential, self: Transaction) -> Bool {
+    ...
+  }
+  publish(redeemer: T, cert: Certificate, self: Transaction) -> Bool {
+    ...
+  }
+  vote(redeemer: T, voter: Voter, self: Transaction) -> Bool {
+    ...
+  }
+  propose(redeemer: T, self: Transaction) -> Bool {
+    ...
+  }
+  else(_) {
+    fail
+  }
+}
+```
+
+Imports for Conway-era handlers:
+```aiken
+use cardano/certificate.{Certificate}       // publish handler
+use cardano/governance.{Voter}              // vote handler
+use cardano/governance.{ProposalProcedure}  // propose handler
+```
+
+### Verified import style (slash, not dot)
+
+```aiken
+use cardano/assets
+use cardano/transaction
+use aiken/interval
+use aiken/collection/list
+use aiken/crypto.{VerificationKeyHash}
+```
+
+### Verified API patterns
+
+```aiken
+// ADA check
+assets.lovelace_of(output.value) >= price
+
+// Signature check
+list.has(self.extra_signatories, owner_key)
+
+// N-of-M multisig
+list.count(admins, fn(k) { list.has(self.extra_signatories, k) }) >= threshold
+
+// NFT check (3 args required)
+assets.has_nft(output.value, policy_id, asset_name)
+
+// Time constraint
+interval.is_entirely_after(self.validity_range, deadline)
+
+// Script outputs
+transaction.find_script_outputs(self.outputs, script_hash)
+```
+
+### What NOT to generate (hallucination targets)
+
+```aiken
+// ❌ These do not exist in Aiken v3
+transaction.signatories(tx)
+list.has_any(a, b)
+output.value.lovelace
+tx.validity_range
+use cardano.transaction.{Transaction}  // dot-style imports
+interval.is_after(deadline, range)     // wrong function name
+```
+
+---
+
+## Part III — Quick Start
 
 ### Prerequisites
 
@@ -126,7 +210,38 @@ pip install anthropic openai datasets transformers trl peft unsloth
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-### Step 1 — Scrape raw sources *(optional — already in `data/raw/`)*
+---
+
+### Path A — Use existing dataset *(recommended)*
+
+The active dataset (`dataset_v22.jsonl`) is already in the repo. Skip straight to fine-tuning.
+
+**Step 1 — Fine-tune** *(Google Colab)*
+
+1. Upload `data/processed/dataset_v22.jsonl` to Colab
+2. Run `colab_finetune.ipynb`
+3. Download GGUF from Google Drive → load in LM Studio
+
+**Step 2 — Evaluate**
+
+```bash
+# Single model (LM Studio must be running with the fine-tuned model loaded)
+python3 eval_model.py
+
+# Multi-model comparison
+python3 benchmark.py
+python3 benchmark.py --compare-only   # re-print saved results without re-running
+```
+
+> **WSL / Windows note:** LM Studio runs on Windows. From WSL, the Windows host is not `localhost` — find your gateway IP with `ip route show default` and use that. The default in `benchmark.py` is `http://YOUR_GATEWAY_IP:3005`. See [Benchmark setup](#benchmark-setup--usage) for full details.
+
+---
+
+### Path B — Rebuild dataset from scratch
+
+Only needed if you want to re-generate or extend the dataset. The raw sources are already scraped in `data/raw/`.
+
+**Step 1 — Scrape raw sources** *(optional — already in `data/raw/`)*
 
 ```bash
 python3 scripts/scrape/scrape_aiken_stdlib_github.py   # stdlib functions → data/raw/aiken_stdlib.json
@@ -135,7 +250,7 @@ python3 scripts/scrape/scrape_hydra_docs.py            # Hydra protocol  → dat
 python3 scripts/scrape/scrape_github.py                # CIPs + patterns → data/raw/cips.json
 ```
 
-### Step 2 — Generate training examples
+**Step 2 — Generate training examples**
 
 ```bash
 # Main grounded generation (stdlib, docs, CIPs, patterns, Hydra)
@@ -150,7 +265,7 @@ python3 scripts/generate/generate_corrections_v2.py
 # Output: data/processed/corrections_v2.jsonl (50 examples)
 ```
 
-### Step 3 — Build and split dataset
+**Step 3 — Build and split dataset**
 
 ```bash
 # Curriculum-ordered merge
@@ -162,68 +277,56 @@ python3 scripts/build/build_holdout.py
 # Output: dataset_v14_train_split.jsonl (3,363) + dataset_v14_eval.jsonl (374)
 ```
 
-### Step 4 — Fine-tune *(Google Colab)*
-
-1. Upload `data/processed/dataset_v22.jsonl` to Colab
-2. Run `colab_finetune.ipynb`
-3. Download model from Google Drive and load in LM Studio
-
-### Step 5 — Evaluate
-
-**Single model** (requires LM Studio running with the fine-tuned model loaded):
-```bash
-pip install openai
-python3 eval_model.py
-```
-
-**Multi-model comparison** (all versions loaded simultaneously in LM Studio):
-```bash
-python3 benchmark.py
-# Re-print saved results without re-running:
-python3 benchmark.py --compare-only
-```
-
-> **WSL / Windows note:** LM Studio runs on Windows. From WSL, the Windows host is not `localhost` — find your gateway IP with `ip route show default` and use that. The default in `benchmark.py` is `http://YOUR_GATEWAY_IP:3005`. See [Benchmark setup](#benchmark-setup--usage) for full details.
+Then apply the cleaning pipeline (v15→v22) — see [Cleaning pipeline](#cleaning-pipeline-v14--v20).
 
 ---
 
-## Part III — The Dataset
+## Part IV — The Dataset
 
 ### Current state (v22 — active)
 
 | Metric | Value |
 |--------|-------|
-| Total examples | **3,473** |
+| Total examples | **3,748** |
 | Languages | EN ~60% / ES ~40% |
-| Sources | 12 + generated governance + v3-compat |
+| Sources | 15 + misc combined sources |
 | `fn` prefix errors | **0** (was 21.5% in v14) |
-| VERIFIED_V3_ALIGNED | **66%** (was 53% in v14) |
-| PLAUSIBLE_NEEDS_CHECK | 32% (was 45% in v14) |
-| Governance handler coverage | vote(58), publish(56), propose(15) |
+| VERIFIED_V3_ALIGNED | **~94%** (was 53% in v14) |
+| PLAUSIBLE_NEEDS_CHECK | ~1% (was 45% in v14) |
+| Governance handler coverage | vote(64), publish(69), propose(15) — v8 correction patterns added in correction_set_v3 |
 | `else(_)` fallback coverage | 6.4% (was 4.7% in v14) |
 | Banned stdlib v3 patterns | **0** (migrated from v21) |
-| Compile pass rate (code sources) | correction_set **100%**, governance **100%** |
+| Compile pass rate (code sources) | correction_set **100%**, governance **100%**, with_tests **100%** |
+| Examples with `test` blocks | **323 (8.6%)** — 169 from `with_tests_examples`, rest embedded in other sources |
 | All fixes verified against | `data/raw/aiken_stdlib.json` + `aiken check` |
 
-**Dataset lineage:** v14 → v15 (fn fix) → v16 (broken removed) → v17 (type fixes) → v18b (truncated regenerated) → v19 (+ governance) → v19_dedup (dedup) → v20 (PLAUSIBLE reviewed) → v21 (+ 82 CIP-31 reference_input examples) → v22 (full stdlib v3 migration + 74 new v3-compat examples) → **v22 compile-verified (correction_set 100%, governance 100%, active)**
+Full version history in [Dataset version history](#dataset-version-history).
 
 ---
 
 ### Sources
 
-| Source | Examples | Description |
-|--------|----------|-------------|
-| `aiken_stdlib` | 1,310 | One Q&A per stdlib function — grounded in real signatures from `aiken_stdlib.json` |
-| `cips` | 506 | CIPs in Ledger/Plutus/Tokens/Metadata categories |
-| `aiken_docs` | 347 | Language concepts, type system, syntax from official docs |
-| `aiken_design_patterns` | 176 | Production patterns from Anastasia-Labs (conceptual + code, stdlib v3 compatible via v1.5.0) |
-| `aiken_v3_curated_v2` | 436 | Complex validators with correct handler structure (spend/mint/withdraw/vote/publish/propose, reference inputs, typed datum, interval, governance, dict, rational) |
-| `correction_set` | 150 | Targeted correction examples — common v3 errors with correct fixes. **100% compile-verified.** |
-| `correction_set_v2` | 48 | Extended correction set covering Conway-era handler errors. **100% compile-verified.** |
-| `generated_governance_v1` | 54 | Generated vote/publish/propose validators. **100% compile-verified.** |
-| `reference_input_examples` | 82 | CIP-31 reference input patterns (find_input coverage) |
-| `v3_compat_examples` | 74 | v3-compatibility examples added in v22 |
-| `hydra_docs` | 60 | Hydra Head protocol — lifecycle, snapshots, fanout, L2 transactions |
+| Source | n | Description | Status |
+|--------|---|-------------|--------|
+| `aiken_stdlib` | 1,310 | One Q&A per stdlib function — grounded in `aiken_stdlib.json` | VERIFIED |
+| `cips` | 505 | CIPs — Ledger/Plutus/Tokens/Metadata | VERIFIED |
+| `aiken_v3_curated_v2` | 436 | Complex validators: all handlers, reference inputs, governance, dict, rational | VERIFIED |
+| `aiken_docs` | 344 | Language concepts, type system, syntax from official docs | VERIFIED |
+| `aiken_design_patterns` | 176 | Production patterns from Anastasia-Labs (stdlib v3 compatible via v1.5.0) | VERIFIED |
+| `correction_set` | 150 | Targeted v3 error corrections. **100% compile-verified.** | CORRECTION |
+| `with_tests_examples` | 169 | Stdlib-function examples with embedded `test` blocks. **Compile-verified.** | VERIFIED |
+| `reference_input_examples` | 82 | CIP-31 reference input patterns (find_input coverage) | VERIFIED |
+| `v3_compat_examples` | 74 | v3-compatibility examples added in v22 | VERIFIED_V3 |
+| `generated_governance_v1` | 54 | vote/publish/propose validators. **100% compile-verified.** | VERIFIED |
+| `oracle_examples` | 47 | Oracle integration patterns — reference input price feeds | VERIFIED |
+| `correction_set_v2` | 48 | Conway-era handler error corrections. **100% compile-verified.** | CORRECTION |
+| `hydra_docs` | 60 | Hydra Head protocol — lifecycle, snapshots, fanout, L2 transactions | VERIFIED |
+| `cip068_examples` | 32 | CIP-68 reference NFT + user token pair validation | VERIFIED |
+| `correction_set_v3` | 30 | v8 hallucination corrections (5 patterns). **100% compile-verified.** | CORRECTION |
+| *(misc combined)* | 231 | `aiken_docs.json + aiken_stdlib.json` (185), `aiken_stdlib.json` (22), `aiken_docs.json` (22), `aiken_docs.json + aiken_design_patterns.json` (2) | VERIFIED |
+| **Total** | **3,748** | | |
+
+**Status distribution:** VERIFIED_V3_ALIGNED 94.3% / VERIFIED_V3 2.0% / CORRECTION 2.9% / PLAUSIBLE_NEEDS_CHECK 0.8%
 
 > **Note on two Qwen models:** The fine-tuned model (`cardano-dev`) is based on **Qwen3.5-4B** (4B params, base for training). The benchmark comparison baseline is **qwen2.5-coder-7b** (7B params, separate general-purpose coder model). These are different models used for different purposes.
 
@@ -247,12 +350,15 @@ Each example is a JSON line:
 
 `review_status` values:
 - `VERIFIED_V3_ALIGNED` — all APIs confirmed in `aiken_stdlib.json`
+- `VERIFIED_V3` — compile-verified against `aiken check` (stdlib v3.0.0); used for `v3_compat_examples`
 - `PLAUSIBLE_NEEDS_CHECK` — uses patterns like `output.address` that are plausible but not in stdlib signatures
 - `CORRECTION` — negative correction example (broken → fixed)
 
 ---
 
 ### How the dataset was built
+
+> **Note:** This section describes the initial pipeline that produced **v14 as the starting point**. The active dataset (v22, 3,748 examples) was built iteratively on top of this foundation through 8 additional cleaning and generation cycles — see [Dataset version history](#dataset-version-history) for the full evolution.
 
 #### Phase 1 — Scraping raw sources
 
@@ -337,8 +443,8 @@ dataset_v14_train.jsonl  3,737 examples
         │
         ▼
 [build_holdout.py]  stratified 90/10 split by review_status
-        ├── dataset_v14_train_split.jsonl  3,363  ← USE FOR TRAINING
-        └── dataset_v14_eval.jsonl           374  ← USE FOR EVAL
+        ├── dataset_v14_train_split.jsonl  3,363  ← historical baseline (superseded by v22)
+        └── dataset_v14_eval.jsonl           374  ← holdout (still valid for regression testing)
         │
         ▼
 [Cleaning pipeline v15 → v20]
@@ -346,11 +452,35 @@ dataset_v14_train.jsonl  3,737 examples
    generate_governance_examples · dedup · review_plausible
         │
         ▼
-dataset_v22.jsonl  3,474 examples  ← ACTIVE TRAINING SET
+dataset_v22.jsonl  3,748 examples  ← ACTIVE TRAINING SET
         │
         ▼
 [scripts/audit_dataset_compile.py + scripts/regenerate_failing.py]
    compile-verify every example, fix failures via Claude API
+        │
+        ▼
+[scripts/generate/generate_correction_set_v3.py]
+   +30 correction examples for 5 v8 hallucination patterns (100% compile-verified)
+        │
+        ▼
+[scripts/promote_plausible.py]
+   Path A: compile-check pure validators → 57 promoted
+   Path B: banned-pattern check Q&A outputs → 867 promoted
+   Total: 924 PLAUSIBLE → VERIFIED_V3_ALIGNED
+        │
+        ▼
+[scripts/fix_plausible_failures.py]
+   Claude API repairs 97 type_cycle / type_mismatch / banned_pattern failures
+   stdlib local types as context → compile-verified on each fix
+        │
+        ▼
+[scripts/generate/generate_oracle_examples.py + generate_cip068_examples.py]
+   +47 oracle integration patterns · +32 CIP-68 reference NFT patterns
+        │
+        ▼
+[scripts/generate/generate_with_tests.py + scripts/add_tests_to_verified.py]
+   +169 examples with embedded `test` blocks — compile-verified via aiken check
+   15 stdlib topics · deduplication by instruction prefix
         │
         ▼
 [Colab QLoRA — unsloth + Qwen3.5-4B]
@@ -364,6 +494,11 @@ cardano-dev-8.0-v22-q4_k_m.gguf  Q4_K_M ~2.5 GB
 ```
 
 ---
+
+### Historical details
+
+<details>
+<summary>Cleaning pipeline, improvement metrics, v14 baseline — click to expand</summary>
 
 ### Cleaning pipeline (v14 → v20)
 
@@ -399,8 +534,16 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | `scripts/dedup_dataset.py` | Two-pass dedup: exact output hash + n-gram instruction similarity | — |
 | `scripts/compare_datasets.py` | Compares quality metrics across dataset versions | — |
 | `scripts/review_plausible.py` | Promote/remove PLAUSIBLE via local stdlib check (no API cost) | `aiken_stdlib.json` |
+| `scripts/migrate_dataset_to_v3.py` | Full stdlib v3 migration: `pub type`, API renames, auto-imports, cert fields, strip markdown | `aiken_stdlib.json` + pattern lists |
+| `scripts/audit_dataset_compile.py` | Runs `aiken check` on every output; emits pass/fail JSONL report | `aiken check` (PTY sandbox) |
+| `scripts/regenerate_failing.py` | Regenerates compile-failing examples via Claude API using error context | Claude API + `aiken check` |
+| `scripts/fix_import_keyword.py` | `import x.y.z.{A}` → `use x/y/z.{A}`; deletes off-topic examples | Regex + manual review |
+| `scripts/audit_structural_dupes.py` | Detects structurally similar outputs via normalized MD5 hash | — |
+| `scripts/generate/generate_correction_set_v3.py` | Generates compile-verified correction examples for 5 v8 hallucination patterns | Claude API + `aiken check` |
+| `scripts/promote_plausible.py` | Promotes PLAUSIBLE → VERIFIED via compile check (pure validators) + banned-pattern check (Q&A outputs) | `aiken check` + local banned-pattern list |
+| `scripts/fix_plausible_failures.py` | Repairs compile failures via Claude API with local stdlib types as context (type_cycle, type_mismatch, banned_pattern) | Claude API + `aiken check` |
 
-#### Dataset version history
+### Dataset version history
 
 | Version | Examples | Key change |
 |---------|----------|------------|
@@ -415,7 +558,12 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | v21 | 3,401 | +82 CIP-31 reference input examples (find_input coverage: 41 → 159) |
 | v22 | 3,475 | Full stdlib v3 migration (`migrate_dataset_to_v3.py`): pub type fixes, API renames, auto-imports, cert field renames, strip markdown fences. +74 new v3-compat examples. |
 | **v22 compile-verified** | **3,474** | **Individual compile audit on all examples (`audit_dataset_compile.py`). Failing examples regenerated via Claude API (`regenerate_failing.py`). correction_set 100%, governance 100%. 1 irreparable example removed.** |
-| **v22 import-fixed** | **3,473** | **`fix_import_keyword.py`: 42 examples fixed (`import x.y.z` → `use x/y/z`). 1 PyCardano/Python example deleted. Active dataset.** |
+| **v22 import-fixed** | **3,473** | **`fix_import_keyword.py`: 42 examples fixed (`import x.y.z` → `use x/y/z`). 1 PyCardano/Python example deleted.** |
+| **v22 + correction_set_v3** | **3,503** | **`generate_correction_set_v3.py`: +30 compile-verified correction examples for 5 v8 hallucination patterns (pub_type ×6, minted_value ×6, governance_committee ×6, missing_interval ×6, inline_datum ×6).** |
+| **v22 + promote_plausible** | **3,503** | **`promote_plausible.py`: 924 PLAUSIBLE → VERIFIED (compile check + banned-pattern check). 127 failures logged.** |
+| **v22 + fix_plausible** | **3,503** | **`fix_plausible_failures.py`: 97/99 failures repaired via Claude API (stdlib local context). 2 irreparable deleted. VERIFIED ~95%.** |
+| **v22 + oracle/cip068** | **3,582** | **`generate_oracle_examples.py`: +47 oracle patterns. `generate_cip068_examples.py`: +32 CIP-68 examples. Dedup pass: 3 exact removed → 3,579.** |
+| **v22 + with_tests** | **3,748** | **`generate_with_tests.py` + `add_tests_to_verified.py`: +169 examples with embedded `test` blocks across 15+ stdlib topics. Compile-verified via `aiken check`. Active dataset.** |
 
 #### Coverage gaps addressed (v18b + v19)
 
@@ -469,13 +617,15 @@ Key results: `fn` prefix (21.5% → 0%) was the root cause of v2–v4 failures. 
 
 ### Measured improvement (v20 → v22)
 
+> **Snapshot:** The v22 column below shows the dataset at 3,503 examples — the state after stdlib migration and before oracle/cip068/with_tests additions. The active dataset is now 3,748. See [Dataset version history](#dataset-version-history) for the full progression.
+
 The v20→v22 cycle focused on stdlib v3 compatibility and compile verification rather than example count. `scripts/compare_datasets.py` output (v20=3,319 file no longer on disk; v21 is the earliest available backup). The script now includes v3-migration metrics that were not tracked in earlier cycles:
 
 ```
   Metric                                           v14              v19              v21              v22
   ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-  Total examples                                 3,363            3,406            3,401            3,474
+  Total examples                                 3,363            3,406            3,401            3,503
 
   ── SYNTAX ERRORS (lower = better) ──
   fn prefix in handlers                    723 (21.5%)   ✅    0 ( 0.0%)        0 ( 0.0%)        0 ( 0.0%)
@@ -533,7 +683,7 @@ Key results of the v22 migration cycle: **markdown fences 497→0** (all strippe
 
 ---
 
-### Remaining open issues
+### Fixes applied (v14 → v22)
 
 | # | Problem | Scale | Status |
 |---|---------|-------|--------|
@@ -546,8 +696,8 @@ Key results of the v22 migration cycle: **markdown fences 497→0** (all strippe
 | 7 | governance compile failures (1.8%) | 1/54 | ✅ Fixed in v22 compile-verify cycle — 1 example deleted, 100% pass rate |
 | 8 | `import` keyword instead of `use` in outputs | 76 | ✅ Fixed 42 via `fix_import_keyword.py` (BLS12-381/math/utility modules). 1 PyCardano example deleted. 33 remaining are `import` in prose text, not Aiken statements. |
 | 9 | Thematic concentration: 814 examples (23.4%) use `extra_signatories` | 814 | Not a dedup problem — `audit_structural_dupes.py` found only 52 true structural duplicates in the full dataset (1.5%). The 814 are diverse validators that happen to check signatures. Fix: add more examples for underrepresented patterns (propose, interval, governance constructors) to rebalance, not dedup. |
-| 10 | 1,052 remaining PLAUSIBLE unverifiable locally | 32% | Need Claude API to verify `output.*` / `self.*` field patterns |
-| 11 | 5 compile failures in v8 benchmark | 5/15 | pub type leak, `MintedValue` removed, `GovernanceCommittee` wrong name, missing interval import — addressable via targeted training data |
+| 10 | 1,052 remaining PLAUSIBLE unverifiable locally | 32% | ✅ Fixed — `promote_plausible.py` promoted 924/1051 (88%). `fix_plausible_failures.py` repaired 97 more via Claude API. ~30 irreducible remain (parser errors, unknown modules). PLAUSIBLE down from 32% → ~1%. |
+| 11 | 5 compile failures in v8 benchmark | 5/15 | ✅ Fixed via `correction_set_v3` (+30 examples): `pub_type` ×6, `minted_value` ×6, `governance_committee` ×6, `missing_interval` ×6, `inline_datum` ×6. All 100% compile-verified. |
 
 ---
 
@@ -599,31 +749,11 @@ Key results of the v22 migration cycle: **markdown fences 497→0** (all strippe
 | complex mint redeemers | ~15 | 40+ |
 | CORRECTION examples | 37 | 87 |
 
----
-
-### v22 composition — active dataset
-
-| Source | Examples | Notes |
-|--------|----------|-------|
-| `aiken_stdlib` | 1,310 | Q&A grounded in real stdlib signatures |
-| `cips` | 506 | CIPs — Ledger/Plutus/Tokens/Metadata |
-| `aiken_docs` | 347 | Language concepts, syntax, type system |
-| `aiken_design_patterns` | 176 | Production patterns (Anastasia-Labs, stdlib v3 compatible) |
-| `aiken_v3_curated_v2` | 436 | Complex validators: all handlers, reference inputs, governance |
-| `correction_set` | 150 | v3 error corrections. **100% compile-verified.** |
-| `correction_set_v2` | 48 | Conway-era handler error corrections |
-| `generated_governance_v1` | 54 | vote/publish/propose. **100% compile-verified.** |
-| `reference_input_examples` | 82 | CIP-31 reference input patterns |
-| `v3_compat_examples` | 74 | v3-compatibility examples added in v22 |
-| `hydra_docs` | 60 | Hydra Head protocol |
-| *(misc/other)* | ~231 | Remaining examples across small sources |
-| **Total** | **3,474** | — |
-
-**Status distribution:** VERIFIED_V3_ALIGNED 66% / PLAUSIBLE_NEEDS_CHECK 32% / CORRECTION ~2%
+</details>
 
 ---
 
-## Part IV — Training
+## Part V — Training
 
 The training notebook (`colab_finetune.ipynb`) handles:
 - Installing unsloth + dependencies
@@ -711,89 +841,6 @@ VERIFIED API PATTERNS:
   ADA check  : assets.lovelace_of(output.value) — NEVER output.assets.ada
   Signatures : list.has(self.extra_signatories, key) — NEVER self.signatures
   Time       : self.validity_range — NEVER self.time
-```
-
----
-
-## Part V — Aiken v3 Reference
-
-A quick reference card for the patterns the model is trained on. Useful for prompt engineering and for verifying model outputs manually.
-
-### Verified handler signatures
-
-All six Cardano handler purposes are valid. The `fn` keyword **must NOT be used** inside validator blocks — the correct syntax uses the handler name directly. The Aiken v3 compiler rejects `fn spend(` with a parse error. This was the single most critical dataset bug: 21.5% of v14 examples used the `fn` prefix.
-
-```aiken
-validator my_contract {
-  spend(datum: Option<T>, redeemer: T, own_ref: OutputReference, self: Transaction) -> Bool {
-    ...
-  }
-  mint(redeemer: T, policy_id: PolicyId, self: Transaction) -> Bool {
-    ...
-  }
-  withdraw(redeemer: T, account: Credential, self: Transaction) -> Bool {
-    ...
-  }
-  publish(redeemer: T, cert: Certificate, self: Transaction) -> Bool {
-    ...
-  }
-  vote(redeemer: T, voter: Voter, self: Transaction) -> Bool {
-    ...
-  }
-  else(_) {
-    fail
-  }
-}
-```
-
-Imports for Conway-era handlers:
-```aiken
-use cardano/certificate.{Certificate}
-use cardano/governance.{Voter, ProposalProcedure}
-```
-
-### Verified import style (slash, not dot)
-
-```aiken
-use cardano/assets
-use cardano/transaction
-use aiken/interval
-use aiken/collection/list
-use aiken/crypto.{VerificationKeyHash}
-```
-
-### Verified API patterns
-
-```aiken
-// ADA check
-assets.lovelace_of(output.value) >= price
-
-// Signature check
-list.has(self.extra_signatories, owner_key)
-
-// N-of-M multisig
-list.count(admins, fn(k) { list.has(self.extra_signatories, k) }) >= threshold
-
-// NFT check (3 args required)
-assets.has_nft(output.value, policy_id, asset_name)
-
-// Time constraint
-interval.is_entirely_after(self.validity_range, deadline)
-
-// Script outputs
-transaction.find_script_outputs(self.outputs, script_hash)
-```
-
-### What NOT to generate (hallucination targets)
-
-```aiken
-// ❌ These do not exist in Aiken v3
-transaction.signatories(tx)
-list.has_any(a, b)
-output.value.lovelace
-tx.validity_range
-use cardano.transaction.{Transaction}  // dot-style imports
-interval.is_after(deadline, range)     // wrong function name
 ```
 
 ---
@@ -950,7 +997,8 @@ Results are saved per model to `eval_results/` and excluded from git (see `.giti
 | cardano-dev v5 | v20 | 3,319 | ~300 (wrong ckpt) | 14/15 | 93% | +7% | — |
 | cardano-dev v6 | v20 | 3,319 | ~200 (best ckpt) | 14/15 | 93% | 0% | 10/15 (67%) |
 | cardano-dev v7 | v21 | 3,401 | ~300 (early stop) | 14/15 | 93% | 0% | 9/15 (60%) |
-| **cardano-dev v8** | **v22** | **3,474** | **~300 (early stop)** | **15/15** | **100%** | **+7%** | **10/15 (67%)** |
+| **cardano-dev v8** | **v22** | **3,682** | **~300 (early stop)** | **15/15** | **100%** | **+7%** | **10/15 (67%)** |
+| v9 (planned) | v22 | 3,748 | — | — | — | — | — |
 
 > Compile score introduced in v6. `—` = not measured. Heuristic = string-based checks. Compile = `aiken check` via sandbox.
 
@@ -989,6 +1037,8 @@ Consistent failure in v1–v7: `spend_reference_input` — requires `reference_i
 **gemma-4-e4b base scores 33% without fine-tuning** — it has real Aiken v3 knowledge from pretraining (passes vote, publish, import_style correctly). qwen2.5-coder-7b base scores 0% because it doesn't generate `use x/y` style imports at all — it defaults to Python-like imports or omits them entirely.
 
 **`spend_reference_input` was the persistent failure across v1–v7** — the test requires both `reference_inputs` and `find_input` in the output, and the pattern has only 72 examples in the dataset. v8 finally passes it, completing a 15/15 heuristic sweep. The remaining challenge is compile quality: 5 of 15 tests still fail `aiken check` (pub type leak, removed constructors, missing interval import). These are coverage gaps addressable via targeted training data.
+
+**v9 target (dataset v22, 3,748 examples):** The main additions since v8 are `oracle_examples` (+47), `cip068_examples` (+32), and `with_tests_examples` (+169, up from 103). The `with_tests_examples` source is the most structurally novel — every example includes a `test` block that was verified to pass `aiken check`, teaching the model both correct API usage and correct test syntax simultaneously. Test coverage is now 8.6% (323/3,748 examples). Expected outcome: improved compile score (currently 10/15), particularly for examples that use stdlib functions prone to arity errors (`assets.flatten`, `dict.insert`, `bytearray.and_bytes`, `Rational`).
 
 ---
 
@@ -1299,6 +1349,28 @@ shutil.copytree("/content/qwen35_4b_aiken_v20_lora", "/content/drive/MyDrive/car
 
 ---
 
+### Stdlib API pitfalls discovered during v22 generation
+
+These were found while building `with_tests_examples` via `aiken check` — patterns that Claude generates confidently but that fail to compile against stdlib v3.0.0.
+
+| API | What Claude generates | What actually works |
+|-----|----------------------|---------------------|
+| `assets.flatten_with` | 3-arg lambda | `FlattenStrategy` needs 5-arg fn — use `assets.flatten` + `list.filter` instead |
+| `dict.insert` | `dict.insert(d, k, v, bytearray.compare)` | Only 2 args: `dict.insert(d, k, v)` — no compare fn |
+| `list.span` | `list.span(xs, predicate)` | Takes index `n: Int`, not a predicate |
+| `list.reduce` | `list.reduce(xs, fn(a, b) -> Option<c>)` | Same as foldl: `list.reduce(xs, zero, fn(b, a) -> b)` |
+| `math.sqrt` | Returns `Int` | Returns `Option<Int>` — handle `None` case |
+| `bytearray.and_bytes` | 2 args | 3 args: `(left, right, pad_end: Bool)` |
+| `Interval` | `Interval<Int>` | Not generic — just `Interval`, no type parameter |
+| `Rational` | Used without explicit import | Requires `use aiken/math/rational.{Rational}` |
+| `dict.union_with` | Annotated as `UnionStrategy` | Use `strategy.sum()` directly — do not annotate the type |
+
+**Root cause in all cases:** Claude extrapolates from similar languages (Haskell, Elm) or from vague stdlib doc descriptions. The fix is always the same: run `aiken check` locally, read the actual error, look up the real signature in `data/raw/aiken_stdlib.json`.
+
+**Lesson:** Pattern-matching checks (the v14-era approach) cannot replace compilation. A function call with the right name but wrong arity passes any heuristic and fails immediately at `aiken check`. This is why `with_tests_examples` is fully compile-gated — no example is added without a passing `aiken check` run.
+
+---
+
 ## Part IX — Project Structure
 
 ```
@@ -1322,6 +1394,10 @@ cardumen-forge/
 │   │   ├── generate_validators_v2.py       # 19-batch curated validator generator
 │   │   ├── generate_corrections_v2.py      # CORRECTION examples v2
 │   │   ├── generate_correction_set.py      # CORRECTION examples v1
+│   │   ├── generate_correction_set_v3.py   # CORRECTION examples v3 (v8 hallucination patterns)
+│   │   ├── generate_oracle_examples.py     # Oracle integration patterns (47 examples)
+│   │   ├── generate_cip068_examples.py     # CIP-68 reference NFT patterns (32 examples)
+│   │   ├── generate_with_tests.py          # Stdlib examples with embedded test blocks
 │   │   └── fix_incomplete_validators.py    # Regenerate incomplete outputs
 │   │
 │   ├── audit/                         # Step 3 — quality checks
@@ -1336,12 +1412,18 @@ cardumen-forge/
 │   ├── fix_fn_prefix.py                    # Step 5 — cleaning pipeline (v14 → v20)
 │   ├── build_v16.py
 │   ├── fix_types.py
+│   ├── fix_import_keyword.py               # import x.y.z → use x/y/z; delete off-topic examples
 │   ├── regenerate_truncated.py
 │   ├── generate_governance_examples.py
+│   ├── generate_reference_input_examples.py
 │   ├── dedup_dataset.py
 │   ├── compare_datasets.py
 │   ├── review_plausible.py
+│   ├── promote_plausible.py                # PLAUSIBLE → VERIFIED via compile + banned-pattern check
+│   ├── fix_plausible_failures.py           # Claude API repair of compile failures
+│   ├── audit_structural_dupes.py           # Detect structurally similar outputs (normalized MD5)
 │   ├── audit_dataset_quality.py
+│   ├── add_tests_to_verified.py            # Add test blocks to existing VERIFIED examples
 │   ├── migrate_dataset_to_v3.py            # Step 6 — stdlib v3 migration (v21 → v22)
 │   ├── strip_markdown_outputs.py           # Extract code from markdown-fenced outputs
 │   ├── audit_dataset_compile.py            # Run aiken check on every dataset example
@@ -1353,13 +1435,25 @@ cardumen-forge/
 │   │   ├── aiken_docs.json                 # 28 documentation pages
 │   │   ├── aiken_design_patterns.json      # 22 production pattern files
 │   │   ├── cips.json                       # 134 Cardano Improvement Proposals
-│   │   └── hydra_docs.json                 # 35 Hydra protocol pages
+│   │   ├── hydra_docs.json                 # 35 Hydra protocol pages
+│   │   └── hydra_plutus.json               # Hydra + Plutus integration reference
 │   │
 │   └── processed/
-│       ├── dataset_v22.jsonl               # 3,474 examples — ACTIVE TRAINING SET (compile-verified)
+│       ├── dataset_v22.jsonl               # 3,748 examples — ACTIVE TRAINING SET (compile-verified)
 │       ├── dataset_v14_eval.jsonl          # 374 examples — HOLDOUT (do not train on)
-│       ├── components/                     # Building blocks: corrections, validators, governance
-│       └── archive/                        # Superseded dataset versions (v13–v19)
+│       ├── components/                     # Building blocks per source
+│       │   ├── correction_set.jsonl
+│       │   ├── correction_set_v3.jsonl
+│       │   ├── corrections_v2.jsonl
+│       │   ├── governance_examples.jsonl
+│       │   ├── oracle_examples.jsonl
+│       │   ├── cip068_examples.jsonl
+│       │   ├── reference_input_examples.jsonl
+│       │   ├── v3_compat_examples.jsonl
+│       │   ├── with_tests_examples.jsonl
+│       │   ├── validators_v3.jsonl
+│       │   └── validators_fixed.jsonl
+│       └── archive/                        # Superseded dataset versions (v13–v21)
 │
 ├── logs/                              # generation and audit run logs
 └── archive/scripts/                   # superseded scripts (v13 pipeline, old audits)
@@ -1369,7 +1463,7 @@ cardumen-forge/
 
 ## Known Limitations
 
-- **PLAUSIBLE_NEEDS_CHECK is 32% of training data** (down from 44% in v14 after the v20 review pass). These examples use patterns like `output.address` and `output.datum` that are plausible but not directly verifiable against stdlib signatures. The model may learn some patterns that work in practice but aren't grounded in documentation. Curriculum ordering (placing PLAUSIBLE last) partially mitigates this.
+- **PLAUSIBLE_NEEDS_CHECK is ~1% of training data** (down from 44% in v14, from 32% post-v20, to 0.8% after `promote_plausible.py` + `fix_plausible_failures.py`). The 29 remaining examples use patterns not verifiable against stdlib signatures or `aiken check`. Curriculum ordering (placing PLAUSIBLE last) partially mitigates this.
 - **Heuristic checks are string-based.** Passing all 15 tests does not guarantee the output compiles — a pattern can appear in a comment and pass. The compile score (`aiken check` via `benchmark.py`) is the harder, more reliable signal.
 - **Compile score is on model outputs, not the dataset.** `benchmark.py` compiles what the model generates, not the training examples. Dataset examples were migrated to v3 patterns via `scripts/migrate_dataset_to_v3.py` and individually compiled via `scripts/audit_dataset_compile.py`. Failing examples were fixed via `scripts/regenerate_failing.py` (Claude API). `correction_set` and `generated_governance_v1` both reach 100% compile pass rate. Some sources (`aiken_stdlib`, `cips`, `hydra_docs`) are intentionally prose and do not compile.
 - **Two governance tests out of 15.** `vote` and `publish` handlers were added in v14 but the eval suite only has 2 tests covering them (vs 9 for spend/mint). Coverage asymmetry may hide regressions in governance patterns.
@@ -1397,4 +1491,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*Cardumen Forge — cardano-dev v8 (trained) · v9 next | heuristic 15/15 (100%) · compile 10/15 (67%) | dataset v22 | 3,474 examples | stdlib v3 migrated + compile-verified | EN/ES | Aiken v3 + Conway handlers*
+*cardano-dev v8 · dataset v22 · 3,748 examples · 15/15 heuristic · 10/15 compile · stdlib v3*
