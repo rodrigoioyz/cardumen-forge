@@ -1,0 +1,29 @@
+{
+  "run_at": "20260405T172627Z",
+  "total": 3,
+  "passed": 3,
+  "failed": 0,
+  "by_category": {
+    "withdraw": {
+      "pass": 3,
+      "fail": 0
+    }
+  },
+  "results": [
+    {
+      "id": "withdraw_02",
+      "category": "withdraw",
+      "status": "pass"
+    },
+    {
+      "id": "withdraw_09",
+      "category": "withdraw",
+      "status": "pass"
+    },
+    {
+      "id": "withdraw_14",
+      "category": "withdraw",
+      "status": "pass"
+    }
+  ]
+}

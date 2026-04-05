@@ -1,0 +1,80 @@
+============================================================
+H5 — Train vs Benchmark Coverage Gap Analysis
+============================================================
+
+Category                         BM   Train~       %  Status
+------------------------------------------------------------
+governance/vote                  23      540   13.9%  ✅
+mint/burn                        25       44    1.1%  ✅
+mint/one_shot                    25      153    3.9%  ✅
+spend/ada_payment                24      599   15.4%  ✅
+spend/datum_inline               25        0    0.0%  ❌ GAP
+spend/multisig_threshold         25        0    0.0%  ❌ GAP
+spend/nft_gate                   25      521   13.4%  ✅
+spend/reference_input            25      145    3.7%  ✅
+spend/signature                  20      445   11.4%  ✅
+spend/time                       25      466   12.0%  ✅
+
+────────────────────────────────────────────────────────────
+must_contain / must_not_contain audit (first 20 benchmark prompts):
+
+  [spend_signature_01] Write an Aiken v3 spend validator called `owner_signed` that...
+       must_contain:     ['extra_signatories', 'list.has', 'Option<ByteArray>', 'spend']
+       must_not_contain: ['self.signatures', 'self.time', 'signatories()', 'PosixTime', 'import ']
+  [spend_ada_payment_03] Write an Aiken v3 spend validator called `ada_payment` that ...
+       must_contain:     ['assets.lovelace_of', 'list.any', 'self.outputs', 'output.address', 'output.value', 'spend(']
+       must_not_contain: ['self.signatures', 'self.time', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']
+  [spend_ada_payment_04] Write an Aiken v3 spend validator called `ada_payment` that ...
+       must_contain:     ['assets.lovelace_of', 'list.any', 'self.outputs', 'min_lovelace', 'recipient', 'PaymentDatum', 'spend(']
+       must_not_contain: ['self.signatures', 'self.time', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']
+  [spend_time_05] Write an Aiken v3 spend validator called `time_locked` that ...
+       must_contain:     ['validity_range', 'interval.is_entirely_after', 'deadline', 'spend(', 'self: Transaction']
+       must_not_contain: ['self.time', 'self.signatures', 'PosixTime', 'Interval<Int>', 'import ', 'use cardano.']
+  [spend_time_06] Write an Aiken v3 spend validator called 'time_lock' that us...
+       must_contain:     ['validity_range', 'interval.is_entirely_after', 'deadline', 'TimeLockDatum', 'spend']
+       must_not_contain: ['self.time', 'PosixTime', 'self.signatures', 'Interval<Int>', 'import ']
+  [spend_nft_gate_07] Write an Aiken v3 spend validator called `nft_gate` that all...
+       must_contain:     ['assets.quantity_of', 'input.output.value', 'self.inputs', 'list.any', 'policy_id', 'asset_name']
+       must_not_contain: ['self.signatures', 'self.time', 'PosixTime', 'MintedValue', 'import ', 'fn spend']
+  [spend_nft_gate_08] Write an Aiken v3 spend validator called `nft_gate` that unl...
+       must_contain:     ['assets.quantity_of', 'input.output.value', 'self.inputs', 'list.any', 'nft_policy_id', 'nft_asset_name']
+       must_not_contain: ['self.signatures', 'self.time', 'MintedValue', 'PosixTime', 'import ', 'use cardano.']
+  [spend_datum_inline_10] Write an Aiken v3 spend validator called `escrow_validator` ...
+       must_contain:     ['InlineDatum', 'expect InlineDatum(raw) = output.datum', 'expect escrow: EscrowDatum = raw', 'EscrowDatum', 'beneficiary', 'amount']
+       must_not_contain: ['self.signatures', 'self.time', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']
+  [mint_one_shot_11] Write an Aiken v3 mint validator called `one_shot_mint` that...
+       must_contain:     ['validator one_shot_mint', 'mint(', 'self.inputs', 'list.any', 'output_reference', 'nonce_ref', 'OneShotRedeemer']
+       must_not_contain: ['self.signatures', 'self.time', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']
+  [mint_one_shot_12] Write an Aiken v3 mint validator called `one_shot_mint` that...
+       must_contain:     ['list.any', 'self.inputs', 'output_reference', 'nonce_ref', 'mint(', 'one_shot_mint']
+       must_not_contain: ['self.signatures', 'self.time', 'import ', 'PosixTime', 'MintedValue', 'use cardano.']
+  [mint_burn_13] Write an Aiken v3 mint validator called `burn_only` that acc...
+       must_contain:     ['assets.quantity_of', 'self.mint', 'qty < 0', 'mint(redeemer']
+       must_not_contain: ['self.signatures', 'self.time', 'MintedValue', 'PosixTime', 'import ']
+  [mint_burn_14] Write an Aiken v3 mint validator called `burn_only` that ens...
+       must_contain:     ['mint(', 'self.mint', 'assets.quantity_of', '< 0', 'policy_id']
+       must_not_contain: ['self.signatures', 'self.time', 'MintedValue', 'PosixTime', 'import ']
+  [spend_reference_input_17] Write an Aiken v3 spend validator called `oracle_spend` that...
+       must_contain:     ['reference_inputs', 'InlineDatum', 'oracle_ref', 'min_price', 'list.find', 'output_reference']
+       must_not_contain: ['self.signatures', 'self.time', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']
+  [spend_reference_input_18] Write an Aiken v3 spend validator called 'oracle_spend' that...
+       must_contain:     ['reference_inputs', 'list.find', 'InlineDatum', 'extra_signatories', 'oracle_ref', 'min_price', 'OracleDatum', 'SpendDatum']
+       must_not_contain: ['self.signatures', 'self.time', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']
+  [spend_multisig_threshold_19] Write an Aiken v3 spend validator called `multisig_threshold...
+       must_contain:     ['extra_signatories', 'list.count', 'list.has', 'threshold', 'required_signers', 'spend(']
+       must_not_contain: ['self.signatures', 'self.time', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']
+  [spend_multisig_threshold_20] Write an Aiken v3 spend validator called `multisig_threshold...
+       must_contain:     ['extra_signatories', 'list.count', 'list.has', 'threshold', 'required_signers', 'spend(']
+       must_not_contain: ['self.signatures', 'self.time', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']
+  [spend_signature_02] Write an Aiken v3 spend validator called `owner_signed` that...
+       must_contain:     ['extra_signatories', 'list.has', 'OwnerDatum', 'owner: ByteArray', 'spend(', 'Option<OwnerDatum>']
+       must_not_contain: ['self.signatures', 'self.time', 'transaction.signatories()', 'PosixTime', 'MintedValue', 'import ']
+  [spend_datum_inline_09] Write an Aiken v3 spend validator called `escrow_release` th...
+       must_contain:     ['InlineDatum', 'EscrowDatum', 'beneficiary', 'amount', 'expect InlineDatum(raw)', 'expect typed: EscrowDatum = raw']
+       must_not_contain: ['self.time', 'self.signatures', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']
+  [spend_signature_03] Write an Aiken v3 spend validator called `owner_signed` that...
+       must_contain:     ['extra_signatories', 'list.has', 'pub type OwnerDatum', 'owner: ByteArray', 'spend(']
+       must_not_contain: ['self.signatures', 'self.time', 'transaction.signatories', 'PosixTime', 'import ']
+  [spend_ada_payment_05] Write an Aiken v3 spend validator called `ada_payment` that ...
+       must_contain:     ['assets.lovelace_of', 'list.any', 'self.outputs', 'min_lovelace', 'recipient', 'spend(', 'Option<PaymentDatum>']
+       must_not_contain: ['self.time', 'self.signatures', 'PosixTime', 'MintedValue', 'import ', 'use cardano.']

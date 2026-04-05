@@ -1,0 +1,114 @@
+{
+  "run_at": "20260405T164955Z",
+  "total": 20,
+  "passed": 20,
+  "failed": 0,
+  "by_category": {
+    "spend/signature": {
+      "pass": 20,
+      "fail": 0
+    }
+  },
+  "results": [
+    {
+      "id": "spend_signature_01",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_02",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_03",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_04",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_05",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_06",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_07",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_08",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_09",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_10",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_11",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_12",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_13",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_14",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_15",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_16",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_17",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_18",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_19",
+      "category": "spend/signature",
+      "status": "pass"
+    },
+    {
+      "id": "spend_signature_20",
+      "category": "spend/signature",
+      "status": "pass"
+    }
+  ]
+}

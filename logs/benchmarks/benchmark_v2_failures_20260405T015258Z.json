@@ -1,0 +1,49 @@
+{
+  "run_at": "20260405T015258Z",
+  "model": "claude-sonnet-4-6",
+  "target_n": 20,
+  "passed": 15,
+  "failed": 5,
+  "failures": [
+    {
+      "seq": 1,
+      "category": "spend/signature",
+      "id": "spend_signature_01",
+      "reason": "compile_failed",
+      "error": "8;;https://aiken-lang.org/language-tour/modules        Error aiken::check::private_leak (link)8;;\n\n  × While trying to make sense of your code...\n  ╰─▶ I caught a private value trying to escape.\n      \n    ╭─[./validators/output.ak:4:1]\n  2 │     use cardano/transaction.{InlineDatum, OutputReference, Transaction}\n  3 │     \n  4 │ ╭─▶ type Datum {\n  5 │ │     required_signer: ByteArray,\n  6 │ ├─▶ }",
+      "solution": "use aiken/collection/list\nuse cardano/transaction.{InlineDatum, OutputReference, Transaction}\n\ntype Datum {\n  required_signer: ByteArray,\n}\n\nvalidator require_signature {\n  spend(\n    datum: Option<Datum>,\n    _redeemer: Data,\n    _own_ref: OutputReference,\n    self: Transaction,\n  ) {\n    when datum is {\n      None -> False\n      Some(d) ->\n        list.has(self.extra_signatories, d.required_signer)\n    }\n  }\n}\n"
+    },
+    {
+      "seq": 15,
+      "category": "governance/vote",
+      "id": "governance_vote_15",
+      "reason": "compile_failed",
+      "error": "Error aiken::check::unknown::module_field\n\n  × While trying to make sense of your code...\n  ╰─▶ I found an unknown import 'GovernanceActionId' from module 'cardano/\n      transaction'.\n      \n   ╭─[./validators/output.ak:2:26]\n 1 │ use aiken/collection/list\n 2 │ use cardano/transaction.{GovernanceActionId, Transaction, Voter}\n   ·                          ─────────┬────────\n   ·                   ",
+      "solution": "use aiken/collection/list\nuse cardano/transaction.{GovernanceActionId, Transaction, Voter}\n\ntype RequiredSigner =\n  ByteArray\n\nvalidator governance_vote_check(required_signer: RequiredSigner) {\n  vote(\n    _redeemer: Data,\n    _voter: Voter,\n    _proposal: GovernanceActionId,\n    self: Transaction,\n  ) {\n    list.has(self.extra_signatories, required_signer)\n  }\n\n  else(_) {\n    fail\n  }\n}"
+    },
+    {
+      "seq": 16,
+      "category": "governance/vote",
+      "id": "governance_vote_16",
+      "reason": "compile_failed",
+      "error": "Error aiken::parser\n\n  × While parsing files...\n  ╰─▶ I found an unexpected token 'use'.\n      \n    ╭─[./validators/output.ak:10:1]\n  8 │ }\n  9 │ \n 10 │ use aiken/collection/list\n    · ─┬─\n    ·  ╰── \n    ╰────\n  help: I am looking for one of the following patterns:\n        → @\n        → bench\n        → const\n        → fn\n        → opaque\n        → pub\n        → test\n        → type\n        → valid",
+      "solution": "use cardano/transaction.{GovernanceActionId, Transaction, Voter}\n\nvalidator governance_vote_validator {\n  vote(redeemer: Data, _voter: Voter, _proposal: GovernanceActionId, self: Transaction) {\n    expect authority_key: ByteArray = redeemer\n    list.has(self.extra_signatories, authority_key)\n  }\n}\n\nuse aiken/collection/list\n"
+    },
+    {
+      "seq": 18,
+      "category": "spend/reference_input",
+      "id": "spend_reference_input_18",
+      "reason": "compile_failed",
+      "error": "8;;https://aiken-lang.org/language-tour/modules        Error aiken::check::private_leak (link)8;;\n\n  × While trying to make sense of your code...\n  ╰─▶ I caught a private value trying to escape.\n      \n    ╭─[./validators/output.ak:5:1]\n  3 │     use cardano/transaction.{InlineDatum, OutputReference, Transaction}\n  4 │     \n  5 │ ╭─▶ type SpendDatum {\n  6 │ │     policy_id: ByteArray,\n  7 │ ├─▶ }\n",
+      "solution": "use aiken/collection/list\nuse cardano/assets\nuse cardano/transaction.{InlineDatum, OutputReference, Transaction}\n\ntype SpendDatum {\n  policy_id: ByteArray,\n}\n\nvalidator oracle_spend {\n  spend(\n    datum: Option<SpendDatum>,\n    _redeemer: Data,\n    _own_ref: OutputReference,\n    self: Transaction,\n  ) {\n    expect Some(d) = datum\n    let oracle_ref_input =\n      list.find(\n        self.reference_inputs,\n        fn(inp) {\n          list.any(\n            assets.policies(inp.output.value),\n            fn(pol) { pol == d.policy_id },\n          )\n        },\n      )\n    expect Some(ref_input) = oracle_ref_input\n    expect InlineDatum(raw_datum) = ref_input.output.datum\n    expect oracle_price: Int = raw_datum\n    oracle_price > 0\n  }\n}"
+    },
+    {
+      "seq": 19,
+      "category": "spend/multisig_threshold",
+      "id": "spend_multisig_threshold_19",
+      "reason": "compile_failed",
+      "error": "8;;https://aiken-lang.org/language-tour/modules        Error aiken::check::private_leak (link)8;;\n\n  × While trying to make sense of your code...\n  ╰─▶ I caught a private value trying to escape.\n      \n    ╭─[./validators/output.ak:4:1]\n  2 │     use cardano/transaction.{InlineDatum, OutputReference, Transaction}\n  3 │     \n  4 │ ╭─▶ type MultisigDatum {\n  5 │ │     required_signers: List<ByteArra",
+      "solution": "use aiken/collection/list\nuse cardano/transaction.{InlineDatum, OutputReference, Transaction}\n\ntype MultisigDatum {\n  required_signers: List<ByteArray>,\n  threshold: Int,\n}\n\nvalidator multisig_threshold {\n  spend(\n    datum: Option<MultisigDatum>,\n    _redeemer: Data,\n    _own_ref: OutputReference,\n    self: Transaction,\n  ) {\n    when datum is {\n      None -> False\n      Some(d) -> {\n        let sig_count =\n          list.count(\n            d.required_signers,\n            fn(s) { list.has(self.extra_signatories, s) },\n          )\n        sig_count >= d.threshold\n      }\n    }\n  }\n}\n"
+    }
+  ]
+}

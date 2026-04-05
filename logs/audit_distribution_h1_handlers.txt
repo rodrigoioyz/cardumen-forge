@@ -1,0 +1,19 @@
+============================================================
+H1 — Handler Type Distribution
+============================================================
+
+Handler            Dataset       %          Benchmark cat
+------------------------------------------------------------
+spend                1,352   34.8%                    169
+mint                   449   11.5%                     50
+withdraw               117    3.0%                      0
+vote                    64    1.6%                      0
+publish                 69    1.8%                      0
+propose                 15    0.4%                      0
+
+Examples with multiple handlers: 55 (1.4%)
+
+Benchmark categories:
+  spend                           169
+  mint                             50
+  governance                       23

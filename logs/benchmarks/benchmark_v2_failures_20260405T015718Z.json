@@ -1,0 +1,109 @@
+{
+  "run_at": "20260405T015718Z",
+  "model": "claude-sonnet-4-6",
+  "target_n": 20,
+  "passed": 0,
+  "failed": 20,
+  "failures": [
+    {
+      "seq": 1,
+      "category": "spend/signature",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 2,
+      "category": "spend/signature",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 3,
+      "category": "spend/ada_payment",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 4,
+      "category": "spend/ada_payment",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 5,
+      "category": "spend/time",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 6,
+      "category": "spend/time",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 7,
+      "category": "spend/nft_gate",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 8,
+      "category": "spend/nft_gate",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 9,
+      "category": "spend/datum_inline",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 10,
+      "category": "spend/datum_inline",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 11,
+      "category": "mint/one_shot",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 12,
+      "category": "mint/one_shot",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 13,
+      "category": "mint/burn",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 14,
+      "category": "mint/burn",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 15,
+      "category": "governance/vote",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 16,
+      "category": "governance/vote",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 17,
+      "category": "spend/reference_input",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 18,
+      "category": "spend/reference_input",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 19,
+      "category": "spend/multisig_threshold",
+      "reason": "generation_failed"
+    },
+    {
+      "seq": 20,
+      "category": "spend/multisig_threshold",
+      "reason": "generation_failed"
+    }
+  ]
+}

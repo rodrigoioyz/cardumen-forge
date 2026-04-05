@@ -1,0 +1,17 @@
+{
+  "run_at": "20260405T025418Z",
+  "model": "claude-sonnet-4-6",
+  "target_n": 200,
+  "passed": 199,
+  "failed": 1,
+  "failures": [
+    {
+      "seq": 134,
+      "category": "mint/burn",
+      "id": "mint_burn_134",
+      "reason": "compile_failed",
+      "error": "Error aiken::check::unknown::module\n\n  × While trying to make sense of your code...\n  ╰─▶ I stumbled upon a reference to an unknown module: 'list'\n      \n    ╭─[./validators/output.ak:8:10]\n  6 │     let minted = self.mint\n  7 │     assets.flatten(minted)\n  8 │       |> list.all(\n    ·          ──┬─\n    ·            ╰── unknown module\n  9 │           fn(entry) {\n 10 │             let (pid, _name, ",
+      "solution": "use cardano/assets\nuse cardano/transaction.{Transaction}\n\nvalidator burn_only {\n  mint(redeemer: Data, policy_id: ByteArray, self: Transaction) {\n    let minted = self.mint\n    assets.flatten(minted)\n      |> list.all(\n          fn(entry) {\n            let (pid, _name, qty) = entry\n            if pid == policy_id {\n              qty < 0\n            } else {\n              True\n            }\n          },\n        )\n  }\n}\n"
+    }
+  ]
+}

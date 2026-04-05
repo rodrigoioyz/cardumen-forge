@@ -1,0 +1,33 @@
+{
+  "run_at": "20260405T020123Z",
+  "model": "claude-sonnet-4-6",
+  "target_n": 20,
+  "passed": 17,
+  "failed": 3,
+  "failures": [
+    {
+      "seq": 5,
+      "category": "spend/time",
+      "id": "spend_time_05",
+      "reason": "compile_failed",
+      "error": "8;;https://aiken-lang.org/language-tour/primitive-types        Error aiken::check::type_mismatch (link)8;;\n\n  × While trying to make sense of your code...\n  ╰─▶ I struggled to unify the types of two expressions.\n      \n    ╭─[./validators/output.ak:18:36]\n 16 │       None -> False\n 17 │       Some(d) ->\n 18 │         interval.is_entirely_after(d.deadline, self.validity_range)\n    ·                ",
+      "solution": "use aiken/interval\nuse cardano/transaction.{InlineDatum, OutputReference, Transaction}\n\npub type EscrowDatum {\n  deadline: Int,\n}\n\nvalidator timed_escrow {\n  spend(\n    datum: Option<EscrowDatum>,\n    _redeemer: Data,\n    _own_ref: OutputReference,\n    self: Transaction,\n  ) {\n    when datum is {\n      None -> False\n      Some(d) ->\n        interval.is_entirely_after(d.deadline, self.validity_range)\n    }\n  }\n}\n"
+    },
+    {
+      "seq": 15,
+      "category": "governance/vote",
+      "id": "governance_vote_15",
+      "reason": "compile_failed",
+      "error": "Error aiken::check::unknown::module_field\n\n  × While trying to make sense of your code...\n  ╰─▶ I found an unknown import 'Voter' from module 'cardano/transaction'.\n      \n   ╭─[./validators/output.ak:2:39]\n 1 │ use cardano/governance.{GovernanceActionId}\n 2 │ use cardano/transaction.{Transaction, Voter}\n   ·                                       ──┬──\n   ·                                         ",
+      "solution": "use cardano/governance.{GovernanceActionId}\nuse cardano/transaction.{Transaction, Voter}\nuse aiken/crypto.{VerificationKeyHash}\n\npub type VoteRedeemer {\n  required_key: VerificationKeyHash,\n}\n\nvalidator governance_vote_validator {\n  vote(redeemer: Data, voter: Voter, _proposal: GovernanceActionId, _self: Transaction) {\n    expect typed: VoteRedeemer = redeemer\n    when voter is {\n      ConstitutionalCommitteeMember { credential, .. } ->\n        when credential is {\n          VerificationKeyCredential(key_hash) -> key_hash == typed.required_key\n          _ -> False\n        }\n      _ -> False\n    }\n  }\n}\n"
+    },
+    {
+      "seq": 16,
+      "category": "governance/vote",
+      "id": "governance_vote_16",
+      "reason": "compile_failed",
+      "error": "Error aiken::check::unknown::module_field\n\n  × While trying to make sense of your code...\n  ╰─▶ I found an unknown import 'Voter' from module 'cardano/transaction'.\n      \n   ╭─[./validators/output.ak:3:39]\n 1 │ use aiken/collection/list\n 2 │ use cardano/governance.{GovernanceActionId}\n 3 │ use cardano/transaction.{Transaction, Voter}\n   ·                                       ──┬──\n   ·          ",
+      "solution": "use aiken/collection/list\nuse cardano/governance.{GovernanceActionId}\nuse cardano/transaction.{Transaction, Voter}\n\npub type DelegateConfig {\n  delegate_key: ByteArray,\n}\n\nvalidator delegate_vote {\n  vote(\n    redeemer: Data,\n    voter: Voter,\n    proposal: GovernanceActionId,\n    self: Transaction,\n  ) {\n    let delegate_config: DelegateConfig = redeemer\n    expect typed: DelegateConfig = delegate_config\n    list.has(self.extra_signatories, typed.delegate_key)\n  }\n\n  else(_) {\n    fail\n  }\n}"
+    }
+  ]
+}

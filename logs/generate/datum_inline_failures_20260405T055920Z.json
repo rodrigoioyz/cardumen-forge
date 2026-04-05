@@ -1,0 +1,14 @@
+{
+  "run_at": "20260405T055920Z",
+  "model": "claude-sonnet-4-6",
+  "passed": 0,
+  "failed": 1,
+  "failures": [
+    {
+      "prompt": "Write an Aiken v3 spend validator `parametric_vault` taking a policy_id: ByteArr",
+      "reason": "compile_failed",
+      "error": "    Compiling cardumen/sandbox 0.0.0 (.)\r\n        Error aiken::parser\r\n\r\n  × While parsing files...\r\n  ╰─▶ I found an unexpected token 'use'.\r\n      \r\n    ╭─[./validators/output.ak:30:19]\r\n 28 │             assets.tokens(output.value, policy_id)\r\n 29 │               |> fn(t) {\r\n 30 │                   use aiken/collection/dict\r\n    ·                   ─┬─\r\n    ·                    ╰── \r\n 31 │                   dict.keys(t)\r\n 32 │                 },\r\n    ╰────\r\n  help: I am looking for one of the following patterns:\r\n        → ↳(\r\n        → (\r\n        → [\r\n        → {\r\n        → -\r\n        → ↳-",
+      "code": "use aiken/collection/list\nuse aiken/interval\nuse cardano/assets\nuse cardano/transaction.{\n  InlineDatum, Input, Output, OutputReference, Transaction,\n}\n\npub type VaultDatum {\n  owner: ByteArray,\n  min_tokens: Int,\n}\n\nvalidator parametric_vault(policy_id: ByteArray) {\n  spend(\n    datum: Option<VaultDatum>,\n    _redeemer: Data,\n    _utxo: OutputReference,\n    self: Transaction,\n  ) {\n    expect Some(d) = datum\n    let owner_signed = list.has(self.extra_signatories, d.owner)\n    let has_enough_tokens =\n      list.any(\n        self.outputs,\n        fn(output) {\n          let tokens = assets.tokens(output.value, policy_id)\n          list.any(\n            assets.tokens(output.value, policy_id)\n              |> fn(t) {\n                  use aiken/collection/dict\n                  dict.keys(t)\n                },\n            fn(asset_name) {\n              assets.quantity_of(output.value, policy_id, asset_name) >= d.min_tokens\n            },\n          )\n        },\n      )\n    owner_signed && has_enough_tokens\n  }\n\n  else(_) {\n    fail\n  }\n}"
+    }
+  ]
+}

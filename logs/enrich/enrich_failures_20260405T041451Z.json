@@ -1,0 +1,15 @@
+{
+  "run_at": "20260405T041451Z",
+  "model": "claude-sonnet-4-6",
+  "passed": 1,
+  "failed": 1,
+  "failures": [
+    {
+      "file": "18c_vault_multi_token_guard.ak",
+      "mode": "enrich",
+      "reason": "no_improvement",
+      "lines_before": 1,
+      "lines_after": 1
+    }
+  ]
+}

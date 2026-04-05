@@ -1,0 +1,31 @@
+============================================================
+H2 — Code Length Distribution (non-empty lines)
+============================================================
+
+  <10           727  ( 18.7%)
+  10-20       1,465  ( 37.7%)
+  20-30         760  ( 19.5%)
+  30-50         609  ( 15.7%)
+  50-100        271  (  7.0%)
+  >100           56  (  1.4%)
+
+  Mean:   24.0 lines
+  Median: 17 lines
+  P10:    7 lines
+  P90:    46 lines
+  Min:    1 lines
+  Max:    267 lines
+
+5 shortest:
+  [  1 lines] Fix this Aiken v3 error: transaction.signatories called instead of self.extra_si
+  [  1 lines] Fix this Aiken v3 error: using transaction.signatories(tx) for signature check
+  [  1 lines] Fix this Aiken v3 error: transaction.signatories used in multi-sig validator
+  [  1 lines] Fix this Aiken v3 error: list.has_any does not exist
+  [  1 lines] Fix this Aiken v3 error: list.has_any called with two lists
+
+5 longest:
+  [194 lines] Write an Aiken v3 property-based test module: Batch liquidation: process multipl
+  [208 lines] Write an Aiken v3 property-based test module: Liquidation penalty: liquidator pa
+  [211 lines] Write an Aiken v3 property-based test module: Partial liquidation: liquidate onl
+  [247 lines] Write an Aiken v3 property-based test module: Dutch liquidation auction: collate
+  [267 lines] Write an Aiken v3 property-based test module: Insurance fund covers bad debt whe

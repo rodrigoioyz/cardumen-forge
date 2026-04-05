@@ -1,0 +1,14 @@
+{
+  "run_at": "20260405T055804Z",
+  "model": "claude-sonnet-4-6",
+  "passed": 0,
+  "failed": 1,
+  "failures": [
+    {
+      "prompt": "Write an Aiken v3 spend validator `parametric_vault` taking a policy_id: ByteArr",
+      "reason": "compile_failed",
+      "error": "    Compiling cardumen/sandbox 0.0.0 (.)\r\n        Error aiken::parser\r\n\r\n  × While parsing files...\r\n  ╰─▶ I found an unexpected token '/'.\r\n      \r\n    ╭─[./validators/output.ak:22:21]\r\n 20 │ }\r\n 21 │ \r\n 22 │ fn dict_sum(d: aiken/collection/dict.Dict<ByteArray, Int>) -> Int {\r\n    ·                     ┬\r\n    ·                     ╰── \r\n 23 │   use aiken/collection/dict\r\n 24 │   dict.foldl(d, 0, fn(_k, v, acc) { acc + v })\r\n    ╰────\r\n  help: I am looking for one of the following patterns:\r\n        → )\r\n        → ,\r\n        → .\r\n\r\n      Summary 1 error, 0 warnings\r\n",
+      "code": "use aiken/collection/list\nuse cardano/assets\nuse cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}\n\npub type VaultDatum {\n  owner: ByteArray,\n  min_tokens: Int,\n}\n\nfn has_min_tokens(outputs: List<Output>, policy_id: ByteArray, min_tokens: Int) -> Bool {\n  list.any(\n    outputs,\n    fn(output) {\n      let total =\n        assets.tokens(output.value, policy_id)\n          |> dict_sum()\n      total >= min_tokens\n    },\n  )\n}\n\nfn dict_sum(d: aiken/collection/dict.Dict<ByteArray, Int>) -> Int {\n  use aiken/collection/dict\n  dict.foldl(d, 0, fn(_k, v, acc) { acc + v })\n}\n\nvalidator parametric_vault(policy_id: ByteArray) {\n  spend(\n    datum: Option<VaultDatum>,\n    _redeemer: Data,\n    _utxo: OutputReference,\n    self: Transaction,\n  ) {\n    expect Some(d) = datum\n    let owner_signed = list.has(self.extra_signatories, d.owner)\n    let tokens_present = has_min_tokens(self.outputs, policy_id, d.min_tokens)\n    owner_signed && tokens_present\n  }\n}"
+    }
+  ]
+}

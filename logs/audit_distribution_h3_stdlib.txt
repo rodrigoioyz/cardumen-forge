@@ -1,0 +1,19 @@
+============================================================
+H3 — Stdlib Module Coverage
+============================================================
+
+Module                                import      %     calls      %  Status
+--------------------------------------------------------------------------------
+aiken/collection/list                  1,671  43.0%     1,697  43.6%  ✅ well-covered
+aiken/collection/dict                    170   4.4%       177   4.6%  ❌ GAP
+aiken/primitive/bytearray                241   6.2%       294   7.6%  ⚠️  sparse
+aiken/primitive/string                    10   0.3%        25   0.6%  ❌ GAP
+aiken/interval                           567  14.6%       590  15.2%  ✅ well-covered
+aiken/math                               143   3.7%       120   3.1%  ❌ GAP
+aiken/crypto                             849  21.8%       855  22.0%  ✅ well-covered
+cardano/assets                         1,318  33.9%     1,207  31.0%  ✅ well-covered
+cardano/transaction                    2,123  54.6%     2,187  56.2%  ✅ well-covered
+cardano/address                          448  11.5%       508  13.1%  ✅ well-covered
+cardano/governance                       109   2.8%       108   2.8%  ❌ GAP
+aiken/fuzz                               220   5.7%       216   5.6%  ⚠️  sparse
+cardano/fuzz                              54   1.4%        37   1.0%  ❌ GAP

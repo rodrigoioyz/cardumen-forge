@@ -1,0 +1,41 @@
+{
+  "run_at": "20260405T020948Z",
+  "model": "claude-sonnet-4-6",
+  "target_n": 30,
+  "passed": 26,
+  "failed": 4,
+  "failures": [
+    {
+      "seq": 14,
+      "category": "spend/datum_inline",
+      "id": "spend_datum_inline_14",
+      "reason": "compile_failed",
+      "error": "8;;https://aiken-lang.org/language-tour/variables-and-constants#type-annotations        Error aiken::check::unknown::record_access (link)8;;\n\n  × While trying to make sense of your code...\n  ╰─▶ I couldn't figure out the type of a record you're trying to access.\n      \n    ╭─[./validators/output.ak:26:28]\n 24 │           ) |> fn(opt) {\n 25 │             when opt is {\n 26 │               Some(inp) ",
+      "solution": "use cardano/assets\nuse cardano/transaction.{InlineDatum, OutputReference, Transaction}\nuse aiken/collection/list\n\npub type EscrowDatum {\n  owner: ByteArray,\n  amount: Int,\n}\n\nvalidator escrow_inline {\n  spend(\n    datum: Option<EscrowDatum>,\n    redeemer: Data,\n    own_ref: OutputReference,\n    self: Transaction,\n  ) {\n    let matching_output =\n      list.find(\n        self.outputs,\n        fn(output) { output.address == (\n          list.find(\n            self.inputs,\n            fn(input) { input.output_reference == own_ref }\n          ) |> fn(opt) {\n            when opt is {\n              Some(inp) -> inp.output.address\n              None -> fail\n            }\n          }\n        ) }\n      )\n    when matching_output is {\n      Some(output) -> {\n        expect InlineDatum(raw) = output.datum\n        expect typed: EscrowDatum = raw\n        typed.amount > 0\n      }\n      None ->\n        when datum is {\n          Some(d) -> d.amount > 0\n          None -> False\n        }\n    }\n  }\n}"
+    },
+    {
+      "seq": 22,
+      "category": "governance/vote",
+      "id": "governance_vote_22",
+      "reason": "compile_failed",
+      "error": "Error aiken::check::illegal::validator_arity\n\n  × While trying to make sense of your code...\n  ╰─▶ Validators require at least 2 arguments and at most 3 arguments.\n      \n    ╭─[./validators/output.ak:9:3]\n  7 │     \n  8 │     validator governance_vote {\n  9 │ ╭─▶   vote(\n 10 │ │       _redeemer: Data,\n 11 │ │       _voter: Voter,\n 12 │ │       _proposal: GovernanceActionId,\n 13 │ │       self: Tr",
+      "solution": "use aiken/collection/list\nuse cardano/governance.{GovernanceActionId, Voter}\nuse cardano/transaction.{Transaction}\n\nconst authorized_key: ByteArray =\n  #\"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n\nvalidator governance_vote {\n  vote(\n    _redeemer: Data,\n    _voter: Voter,\n    _proposal: GovernanceActionId,\n    self: Transaction,\n  ) {\n    list.has(self.extra_signatories, authorized_key)\n  }\n}\n"
+    },
+    {
+      "seq": 23,
+      "category": "governance/vote",
+      "id": "governance_vote_23",
+      "reason": "compile_failed",
+      "error": "Error aiken::check::illegal::validator_arity\n\n  × While trying to make sense of your code...\n  ╰─▶ Validators require at least 2 arguments and at most 3 arguments.\n      \n    ╭─[./validators/output.ak:9:3]\n  7 │     \n  8 │     validator delegate_vote {\n  9 │ ╭─▶   vote(\n 10 │ │       _redeemer: Data,\n 11 │ │       _voter: Voter,\n 12 │ │       _proposal: GovernanceActionId,\n 13 │ │       self: Tran",
+      "solution": "use aiken/collection/list\nuse cardano/governance.{GovernanceActionId, Voter}\nuse cardano/transaction.{Transaction}\n\nconst delegate_key: ByteArray =\n  #\"abcdef1234567890abcdef1234567890abcdef1234567890abcdef12\"\n\nvalidator delegate_vote {\n  vote(\n    _redeemer: Data,\n    _voter: Voter,\n    _proposal: GovernanceActionId,\n    self: Transaction,\n  ) {\n    list.has(self.extra_signatories, delegate_key)\n  }\n}\n"
+    },
+    {
+      "seq": 24,
+      "category": "governance/vote",
+      "id": "governance_vote_24",
+      "reason": "compile_failed",
+      "error": "Error aiken::check::illegal::validator_arity\n\n  × While trying to make sense of your code...\n  ╰─▶ Validators require at least 2 arguments and at most 3 arguments.\n      \n    ╭─[./validators/output.ak:9:3]\n  7 │     \n  8 │     validator governance_vote {\n  9 │ ╭─▶   vote(\n 10 │ │       _redeemer: Data,\n 11 │ │       _voter: Voter,\n 12 │ │       _proposal: GovernanceActionId,\n 13 │ │       self: Tr",
+      "solution": "use aiken/collection/list\nuse cardano/governance.{GovernanceActionId, Voter}\nuse cardano/transaction.{Transaction}\n\nconst required_signer: ByteArray =\n  #\"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n\nvalidator governance_vote {\n  vote(\n    _redeemer: Data,\n    _voter: Voter,\n    _proposal: GovernanceActionId,\n    self: Transaction,\n  ) {\n    list.has(self.extra_signatories, required_signer)\n  }\n}"
+    }
+  ]
+}
