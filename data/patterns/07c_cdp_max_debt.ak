@@ -1,6 +1,6 @@
+
 use aiken/fuzz
 use cardano/transaction.{OutputReference, Transaction}
-
 pub type CdpDatum {
   owner:               ByteArray,
   collateral_lovelace: Int,
@@ -55,4 +55,35 @@ test prop_above_cap_fails(
 
 test prop_zero_debt_fails(cap via fuzz.int_at_least(1)) {
   !within_debt_cap(0, cap)
+}
+
+// ── Negative (fail) tests ────────────────────────────────────────────────────
+
+/// debt > max_debt must always be rejected by within_debt_cap
+test prop_debt_exceeds_cap_rejected(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_at_least(1)),
+) fail {
+  let (cap, over) = vals
+  expect within_debt_cap(cap + over, cap)
+}
+
+/// zero debt must always be rejected regardless of cap
+test prop_zero_debt_rejected(cap via fuzz.int_at_least(1)) fail {
+  expect within_debt_cap(0, cap)
+}
+
+/// undercollateralized: collateral=1, debt>=2, ratio=150
+/// 1*100=100 < 2*150=300, so always False for debt >= 2
+test prop_undercollateralized_rejected(
+  debt via fuzz.int_at_least(2),
+) fail {
+  expect is_overcollateralized(1, debt, 150)
+}
+
+/// collateral=0 means 0*100=0, which is never >= debt*ratio for any positive debt
+test prop_zero_collateral_rejected(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_at_least(1)),
+) fail {
+  let (debt, ratio) = vals
+  expect is_overcollateralized(0, debt, ratio)
 }

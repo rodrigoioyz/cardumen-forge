@@ -1,3 +1,4 @@
+
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
 use aiken/fuzz
@@ -5,7 +6,6 @@ use cardano/address
 use cardano/assets.{PolicyId, quantity_of}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type Phase {
   Open
   Paused
@@ -97,4 +97,34 @@ test prop_resume_paused_to_open() {
 test prop_terminate_always_closed() {
   valid_phase_transition(Open, Closed, Terminate)
     && valid_phase_transition(Paused, Closed, Terminate)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+// Advance requires from==Open; Closed→Closed is invalid
+test prop_advance_closed_rejected() fail {
+  expect valid_phase_transition(Closed, Closed, Advance)
+}
+
+// Pause requires from==Open; Paused→Paused is invalid
+test prop_pause_paused_rejected() fail {
+  expect valid_phase_transition(Paused, Paused, Pause)
+}
+
+// Resume requires from==Paused; Open→Open is invalid
+test prop_resume_open_rejected() fail {
+  expect valid_phase_transition(Open, Open, Resume)
+}
+
+// beacon_preserved always returns False when outputs list is empty,
+// regardless of which policy/name we ask for
+test prop_beacon_not_preserved_empty_outputs(
+  vals via fuzz.both(cfuzz.policy_id(), cfuzz.asset_name()),
+) fail {
+  let (policy, name) = vals
+  let addr =
+    address.from_verification_key(
+      #"00000000000000000000000000000000000000000000000000000000",
+    )
+  expect beacon_preserved([], addr, policy, name)
 }

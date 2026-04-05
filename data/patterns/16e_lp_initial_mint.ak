@@ -1,4 +1,6 @@
 use aiken/fuzz
+use cardano/assets.{PolicyId}
+use cardano/transaction.{Transaction}
 
 /// For the very first deposit (total_lp == 0), use geometric mean: floor(sqrt(a * b))
 /// Approximated via integer Newton's method
@@ -34,11 +36,11 @@ fn initial_lp(input_a: Int, input_b: Int) -> Int {
 
 /// Subsequent deposits use the proportional formula
 fn subsequent_lp(
-  input_a:   Int,
-  input_b:   Int,
+  input_a: Int,
+  input_b: Int,
   reserve_a: Int,
   reserve_b: Int,
-  total_lp:  Int,
+  total_lp: Int,
 ) -> Int {
   let lp_a = input_a * total_lp / reserve_a
   let lp_b = input_b * total_lp / reserve_b
@@ -47,16 +49,50 @@ fn subsequent_lp(
 
 /// Dispatch between initial and subsequent
 fn lp_amount(
-  input_a:   Int,
-  input_b:   Int,
+  input_a: Int,
+  input_b: Int,
   reserve_a: Int,
   reserve_b: Int,
-  total_lp:  Int,
+  total_lp: Int,
 ) -> Int {
   if total_lp == 0 {
     initial_lp(input_a, input_b)
   } else {
     subsequent_lp(input_a, input_b, reserve_a, reserve_b, total_lp)
+  }
+}
+
+pub type LpRedeemer {
+  input_a: Int,
+  input_b: Int,
+  reserve_a: Int,
+  reserve_b: Int,
+  total_lp: Int,
+  min_lp_out: Int,
+}
+
+validator lp_initial_mint(pool_policy: PolicyId) {
+  mint(redeemer: LpRedeemer, policy_id: PolicyId, self: Transaction) {
+    let LpRedeemer { input_a, input_b, reserve_a, reserve_b, total_lp, min_lp_out } = redeemer
+    expect input_a > 0
+    expect input_b > 0
+    expect policy_id == pool_policy
+    let minted_lp =
+      lp_amount(input_a, input_b, reserve_a, reserve_b, total_lp)
+    let minted_value = assets.tokens(self.mint, policy_id)
+    let total_minted =
+      assets.reduce(
+        assets.from_asset(policy_id, #"6c70", minted_lp),
+        0,
+        fn(_, _, qty, acc) { acc + qty },
+      )
+    expect minted_lp >= min_lp_out
+    expect minted_lp > 0
+    total_minted >= 0
+  }
+
+  else(_) {
+    fail
   }
 }
 

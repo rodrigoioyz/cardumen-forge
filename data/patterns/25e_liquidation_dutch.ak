@@ -1,4 +1,5 @@
 use aiken/fuzz
+use cardano/transaction.{Transaction}
 
 /// Dutch liquidation auction: collateral price starts high and drops over time
 /// price = start_price - (start_price - floor_price) * elapsed / duration
@@ -23,6 +24,43 @@ fn liquidator_profit(
   debt_repaid:      Int,
 ) -> Int {
   collateral_value - price_paid - debt_repaid
+}
+
+pub type AuctionDatum {
+  start_price: Int,
+  floor_price: Int,
+  duration: Int,
+  auction_start_slot: Int,
+  debt_repaid: Int,
+  collateral_value: Int,
+}
+
+pub type AuctionRedeemer {
+  elapsed: Int,
+  price_paid: Int,
+}
+
+validator dutch_liquidation_auction {
+  spend(
+    datum: Option<AuctionDatum>,
+    redeemer: AuctionRedeemer,
+    _output_ref: Data,
+    _self: Transaction,
+  ) {
+    expect Some(d) = datum
+    let current_price =
+      dutch_liq_price(d.start_price, d.floor_price, redeemer.elapsed, d.duration)
+    let profit =
+      liquidator_profit(d.collateral_value, redeemer.price_paid, d.debt_repaid)
+    let price_acceptable = redeemer.price_paid >= current_price
+    let elapsed_valid = redeemer.elapsed >= 0 && redeemer.elapsed <= d.duration
+    let profitable = profit >= 0
+    price_acceptable && elapsed_valid && profitable
+  }
+
+  else(_) {
+    fail
+  }
 }
 
 // ── Property tests ───────────────────────────────────────────────────────────

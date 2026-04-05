@@ -23,7 +23,16 @@ validator burn_exact_count {
     self: Transaction,
   ) -> Bool {
     let tokens = assets.tokens(self.mint, policy_id)
-    count_burned_names(tokens) == 1
+    let burned_count = count_burned_names(tokens)
+    // Must burn exactly 1 distinct token name
+    let exactly_one_burned = burned_count == 1
+    // The token dict must not be empty (something must be happening)
+    let tokens_present = dict.size(tokens) > 0
+    // Ensure no token is being minted (all quantities must be negative or zero)
+    let no_minting =
+      list.all(dict.values(tokens), fn(qty) { qty <= 0 })
+    // Exactly one burned name, tokens are present, and nothing is being minted
+    exactly_one_burned && tokens_present && no_minting
   }
 }
 

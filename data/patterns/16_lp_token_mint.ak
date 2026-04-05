@@ -1,10 +1,10 @@
+
 use aiken/collection/dict
 use aiken/collection/list
 use aiken/fuzz
 use cardano/assets.{AssetName, PolicyId}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{Transaction}
-
 pub type PoolDatum {
   reserve_a:  Int,
   reserve_b:  Int,
@@ -50,12 +50,24 @@ fn mint_amount_valid(
 
 validator lp_token_mint {
   mint(
-    _redeemer: Data,
+    redeemer: PoolDatum,
     policy_id: PolicyId,
     self: Transaction,
   ) -> Bool {
     let tokens = assets.tokens(self.mint, policy_id)
-    !dict.is_empty(tokens)
+    let PoolDatum { reserve_a, reserve_b, total_lp, .. } = redeemer
+    expect reserve_a > 0
+    expect reserve_b > 0
+    expect total_lp > 0
+    expect !dict.is_empty(tokens)
+    let input_a = reserve_a / 10
+    let input_b = reserve_b / 10
+    let expected_lp =
+      lp_for_deposit(input_a, input_b, reserve_a, reserve_b, total_lp)
+    expect expected_lp > 0
+    let withdrawal_check = lp_for_withdrawal(expected_lp, total_lp, reserve_a)
+    expect withdrawal_check >= 0
+    mint_amount_valid(tokens, expected_lp)
   }
 }
 
@@ -89,4 +101,47 @@ test prop_lp_withdrawal_partial(
   let (total_lp, reserve) = vals
   let half = total_lp / 2
   lp_for_withdrawal(half, total_lp, reserve) <= reserve
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// mint_amount_valid with an empty token dict never equals a positive expected
+test prop_mint_amount_valid_empty_tokens_fails(
+  expected via fuzz.int_at_least(1),
+) fail {
+  expect mint_amount_valid(dict.empty, expected)
+}
+
+/// mint_amount_valid rejects when the summed tokens exceed expected
+/// We put total = expected + gap (gap >= 1) so total != expected always
+test prop_mint_amount_valid_over_minted_fails(
+  vals via fuzz.both(fuzz.int_between(1, 1000), fuzz.int_between(1, 500)),
+) fail {
+  let (expected, gap) = vals
+  // Build a single-entry dict whose value is expected + gap
+  let tokens =
+    dict.insert(dict.empty, "lp", expected + gap)
+  expect mint_amount_valid(tokens, expected)
+}
+
+/// mint_amount_valid rejects when the summed tokens are less than expected
+/// We put total = expected - gap (gap >= 1, expected >= gap+1) so total != expected
+test prop_mint_amount_valid_under_minted_fails(
+  vals via fuzz.both(fuzz.int_between(2, 1000), fuzz.int_between(1, 500)),
+) fail {
+  let (base, gap) = vals
+  let expected = base + gap
+  // dict value is base, which equals expected - gap < expected
+  let tokens =
+    dict.insert(dict.empty, "lp", base)
+  expect mint_amount_valid(tokens, expected)
+}
+
+/// proportional_lp with input=0 always returns 0, which != total_lp when total_lp >= 1
+test prop_proportional_lp_zero_input_fails(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_at_least(1)),
+) fail {
+  let (reserve, total_lp) = vals
+  // proportional_lp(0, reserve, total_lp) == 0, never == total_lp (>= 1)
+  expect proportional_lp(0, reserve, total_lp) == total_lp
 }

@@ -1,10 +1,10 @@
+
 use aiken/collection/dict
 use aiken/collection/list
 use aiken/fuzz
 use aiken/primitive/bytearray
 use cardano/assets.{PolicyId}
 use cardano/transaction.{Transaction}
-
 const label_222: ByteArray = #"000de140"
 const label_100: ByteArray = #"000643b0"
 
@@ -44,6 +44,20 @@ validator cip68_mint {
     self: Transaction,
   ) -> Bool {
     let tokens = assets.tokens(self.mint, policy_id)
+    // Must mint at least one token
+    let token_count = dict.size(tokens)
+    expect token_count > 0
+    // Every minted name must carry either a (222) or (100) label
+    let all_labelled =
+      list.all(
+        dict.to_pairs(tokens),
+        fn(p) {
+          let Pair(name, _qty) = p
+          has_cip68_label(name, label_222) || has_cip68_label(name, label_100)
+        },
+      )
+    expect all_labelled
+    // Every (222) user token must have a paired (100) reference token
     pairs_balanced(tokens)
   }
 }
@@ -73,4 +87,48 @@ test prop_pairs_balanced_empty() {
 test prop_base_name_roundtrip(suffix via fuzz.bytearray_between(1, 28)) {
   let full = bytearray.concat(label_222, suffix)
   base_name(full) == suffix
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// A name shorter than 4 bytes can never carry a CIP-68 label — has_cip68_label
+/// must return False, so `expect` always fails.
+test prop_fail_label_on_short_name(
+  name via fuzz.bytearray_between(0, 3),
+) fail {
+  expect has_cip68_label(name, label_222)
+}
+
+/// A name whose first 4 bytes differ from label_222 must be rejected.
+/// We guarantee a mismatch by using label_100 as the prefix.
+test prop_fail_wrong_label_prefix(
+  suffix via fuzz.bytearray_between(0, 28),
+) fail {
+  let name = bytearray.concat(label_100, suffix)
+  expect has_cip68_label(name, label_222)
+}
+
+/// A (222) token minted with qty=1 but without its paired (100) token means
+/// pairs_balanced must return False.  We build a dict containing only the
+/// user token and no reference token.
+test prop_fail_unpaired_222_token(
+  suffix via fuzz.bytearray_between(1, 28),
+) fail {
+  let user_name = bytearray.concat(label_222, suffix)
+  let tokens = dict.insert(dict.empty, user_name, 1)
+  expect pairs_balanced(tokens)
+}
+
+/// A (222) token minted with qty != 1 (e.g. 2) must be rejected by
+/// pairs_balanced even when the matching (100) token is present.
+test prop_fail_222_qty_not_one(
+  suffix via fuzz.bytearray_between(1, 28),
+) fail {
+  let user_name = bytearray.concat(label_222, suffix)
+  let ref_name = bytearray.concat(label_100, suffix)
+  let tokens =
+    dict.empty
+      |> dict.insert(user_name, 2)
+      |> dict.insert(ref_name, 1)
+  expect pairs_balanced(tokens)
 }

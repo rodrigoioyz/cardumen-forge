@@ -1,3 +1,4 @@
+
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
 use aiken/fuzz
@@ -5,7 +6,6 @@ use cardano/address
 use cardano/assets.{PolicyId, quantity_of}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type Lifecycle {
   Created
   Active
@@ -105,4 +105,34 @@ test prop_reactivate_suspended_to_active() {
 test prop_expire_from_active_or_suspended() {
   valid_lifecycle_transition(Active, Expired, Expire)
     && valid_lifecycle_transition(Suspended, Expired, Expire)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+// Activate requires from==Created; using Active as source must always fail
+test prop_activate_wrong_source_rejected() fail {
+  expect valid_lifecycle_transition(Active, Active, Activate)
+}
+
+// Suspend requires from==Active; using Created as source must always fail
+test prop_suspend_wrong_source_rejected() fail {
+  expect valid_lifecycle_transition(Created, Suspended, Suspend)
+}
+
+// Reactivate requires from==Suspended; using Created as source must always fail
+test prop_reactivate_wrong_source_rejected() fail {
+  expect valid_lifecycle_transition(Created, Active, Reactivate)
+}
+
+// beacon_preserved always returns False when outputs list is empty,
+// regardless of address, policy, or name
+test prop_no_outputs_beacon_not_preserved(
+  pair via fuzz.both(cfuzz.policy_id(), cfuzz.asset_name()),
+) fail {
+  let (policy, name) = pair
+  let addr =
+    address.from_verification_key(
+      #"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    )
+  expect beacon_preserved([], addr, policy, name)
 }

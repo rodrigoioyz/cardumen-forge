@@ -1,9 +1,9 @@
+
 use aiken/collection/dict
 use aiken/fuzz
 use cardano/assets.{AssetName, PolicyId, lovelace_of}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{OutputReference, Transaction}
-
 pub type VaultDatum {
   owner:      ByteArray,
   asset_policy: PolicyId,
@@ -90,4 +90,33 @@ test prop_deposit_invalid_negative(
   let (name, qty) = vals
   let tokens = dict.empty |> dict.insert(name, -qty)
   !deposit_valid(tokens) && withdrawal_valid(tokens)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// deposit_valid must reject an empty token dict (no tokens present)
+test prop_deposit_valid_empty_tokens_rejected() fail {
+  expect deposit_valid(dict.empty)
+}
+
+/// deposit_valid must reject a token with a non-positive (zero or negative) quantity
+test prop_deposit_valid_zero_qty_rejected(
+  name via cfuzz.asset_name(),
+) fail {
+  let tokens = dict.empty |> dict.insert(name, 0)
+  expect deposit_valid(tokens)
+}
+
+/// withdrawal_valid must reject an empty token dict (no tokens present)
+test prop_withdrawal_valid_empty_tokens_rejected() fail {
+  expect withdrawal_valid(dict.empty)
+}
+
+/// withdrawal_valid must reject a token with a positive quantity
+test prop_withdrawal_valid_positive_qty_rejected(
+  vals via fuzz.both(cfuzz.asset_name(), fuzz.int_at_least(1)),
+) fail {
+  let (name, qty) = vals
+  let tokens = dict.empty |> dict.insert(name, qty)
+  expect withdrawal_valid(tokens)
 }

@@ -1,10 +1,10 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use aiken/option
 use cardano/address
 use cardano/assets.{lovelace_of}
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type PoolDatum {
   reserve_a: Int,
   reserve_b: Int,
@@ -86,4 +86,33 @@ test prop_invariant_preserves_no_zero(
 ) {
   let (r, extra) = vals
   no_zero_reserves(r + extra, r + extra) && invariant_holds(r, r, r + extra, r + extra)
+}
+
+// ── Negative (fail) tests ────────────────────────────────────────────────────
+
+// new_a == 0 always makes no_zero_reserves return False
+test prop_fail_zero_a(
+  b via fuzz.int_at_least(1),
+) fail {
+  expect no_zero_reserves(0, b)
+}
+
+// new_b == 0 always makes no_zero_reserves return False
+test prop_fail_zero_b(
+  a via fuzz.int_at_least(1),
+) fail {
+  expect no_zero_reserves(a, 0)
+}
+
+// both zero always makes no_zero_reserves return False
+test prop_fail_both_zero() fail {
+  expect no_zero_reserves(0, 0)
+}
+
+// negative new_a always makes no_zero_reserves return False
+test prop_fail_negative_a(
+  vals via fuzz.both(fuzz.int_between(-1000, -1), fuzz.int_at_least(1)),
+) fail {
+  let (neg_a, b) = vals
+  expect no_zero_reserves(neg_a, b)
 }

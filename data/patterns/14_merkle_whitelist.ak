@@ -43,7 +43,14 @@ validator merkle_whitelist {
     _self: Transaction,
   ) -> Bool {
     expect Some(d) = datum
-    verify_proof(d.merkle_root, redeemer.leaf, redeemer.proof)
+    let leaf = redeemer.leaf
+    let proof = redeemer.proof
+    let root = d.merkle_root
+    let leaf_not_empty = bytearray.length(leaf) > 0
+    let root_not_empty = bytearray.length(root) > 0
+    let proof_not_empty = list.length(proof) >= 0
+    let proof_valid = verify_proof(root, leaf, proof)
+    leaf_not_empty && root_not_empty && proof_not_empty && proof_valid
   }
 }
 

@@ -1,10 +1,10 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use aiken/option
 use cardano/address
 use cardano/assets.{lovelace_of}
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type PoolDatum {
   reserve_a:    Int,
   reserve_b:    Int,
@@ -86,4 +86,44 @@ test prop_min_reserves_a_fails(
 
 test prop_invariant_equal(r via fuzz.int_at_least(1)) {
   invariant_holds(r, r, r, r)
+}
+
+// ── Negative (fail) tests ────────────────────────────────────────────────────
+
+// reserve_a is strictly below min_reserve, reserve_b is at or above —
+// min_reserves_ok must return False because new_a < min_reserve
+test prop_new_a_below_min_reserves_rejected(
+  vals via fuzz.both(fuzz.int_at_least(2), fuzz.int_at_least(1)),
+) fail {
+  let (min, extra) = vals
+  // new_a = min - 1  < min, new_b = min + extra >= min
+  expect min_reserves_ok(min - 1, min + extra, min)
+}
+
+// reserve_b is strictly below min_reserve, reserve_a is at or above —
+// min_reserves_ok must return False because new_b < min_reserve
+test prop_new_b_below_min_reserves_rejected(
+  vals via fuzz.both(fuzz.int_at_least(2), fuzz.int_at_least(1)),
+) fail {
+  let (min, extra) = vals
+  // new_a = min + extra >= min, new_b = min - 1 < min
+  expect min_reserves_ok(min + extra, min - 1, min)
+}
+
+// Both reserves are zero while min_reserve is positive —
+// min_reserves_ok must return False
+test prop_both_zero_reserves_rejected(
+  min via fuzz.int_at_least(1),
+) fail {
+  expect min_reserves_ok(0, 0, min)
+}
+
+// invariant_holds must return False when new product is drastically smaller
+// than old product (large drain: new reserves are 1 while old are large)
+test prop_invariant_violated_large_drain(
+  old via fuzz.int_at_least(1000),
+) fail {
+  // old_a * old_b = old^2, new_a * new_b = 1
+  // 1 * 1000000 < old^2 * 994009 for old >= 1000
+  expect invariant_holds(old, old, 1, 1)
 }

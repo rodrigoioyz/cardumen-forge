@@ -1,3 +1,4 @@
+
 use aiken/collection/dict
 use aiken/collection/list
 use aiken/fuzz
@@ -5,7 +6,6 @@ use aiken/primitive/bytearray
 use cardano/assets.{PolicyId}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{Transaction}
-
 const label_222: ByteArray = #"000de140"
 const label_100: ByteArray = #"000643b0"
 
@@ -72,4 +72,42 @@ test prop_net_positive_ignores_other(
   let name  = bytearray.concat(label_100, suffix)
   let pairs = [Pair(name, qty)]
   net_label_quantity(pairs, label_222) == 0
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// Burning (negative qty) label_222 tokens must never yield a positive net
+test prop_fail_burn_222_is_positive(
+  vals via fuzz.both(fuzz.bytearray_between(1, 16), fuzz.int_between(1, 1000)),
+) fail {
+  let (suffix, qty) = vals
+  let name  = bytearray.concat(label_222, suffix)
+  let pairs = [Pair(name, -qty)]
+  expect net_label_quantity(pairs, label_222) > 0
+}
+
+/// An empty pair list must never yield a positive net for label_100
+test prop_fail_empty_pairs_100_positive() fail {
+  expect net_label_quantity([], label_100) > 0
+}
+
+/// Tokens with label_100 must not contribute to the label_222 net, so
+/// querying label_222 over a list of only label_100 tokens must never be > 0
+test prop_fail_100_tokens_counted_as_222(
+  vals via fuzz.both(fuzz.bytearray_between(1, 16), fuzz.int_between(1, 500)),
+) fail {
+  let (suffix, qty) = vals
+  let name  = bytearray.concat(label_100, suffix)
+  let pairs = [Pair(name, qty)]
+  expect net_label_quantity(pairs, label_222) > 0
+}
+
+/// A short name (fewer than 4 bytes) must never match any label, so net must
+/// never be positive regardless of quantity
+test prop_fail_short_name_matches_label(
+  qty via fuzz.int_between(1, 1000),
+) fail {
+  // #"aabb" is only 2 bytes — too short for has_label to match
+  let pairs = [Pair(#"aabb", qty)]
+  expect net_label_quantity(pairs, label_222) > 0
 }

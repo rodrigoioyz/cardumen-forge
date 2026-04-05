@@ -1,6 +1,6 @@
+
 use aiken/fuzz
 use cardano/transaction.{OutputReference, Transaction}
-
 pub type CdpDatum {
   owner:               ByteArray,
   collateral_lovelace: Int,
@@ -67,4 +67,41 @@ test prop_above_ceiling_fails(
   let (debt, bps) = vals
   let total = with_interest(debt, bps)
   !within_ceiling(debt, bps, total - 1)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// collateral=0 is never overcollateralized against any positive debt
+test prop_zero_collateral_undercollateralized(
+  debt via fuzz.int_at_least(1),
+) fail {
+  expect is_overcollateralized(0, debt, 150)
+}
+
+/// collateral * 100 < debt * ratio when collateral is tiny and debt is large
+/// collateral=1, ratio=150 → need debt*150 <= 100, impossible for debt >= 1
+test prop_insufficient_collateral_rejected(
+  debt via fuzz.int_at_least(1),
+) fail {
+  expect is_overcollateralized(1, debt, 150)
+}
+
+/// ceiling of 0 means no positive-interest debt can ever be within ceiling
+/// with_interest(debt, bps) >= debt >= 1 > 0 for debt >= 1, bps >= 0
+test prop_zero_ceiling_always_exceeded(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_between(0, 10000)),
+) fail {
+  let (debt, bps) = vals
+  expect within_ceiling(debt, bps, 0)
+}
+
+/// Ceiling set to one less than the bare principal always fails when bps > 0
+/// with_interest(debt, bps) > debt for bps >= 10000/debt (guaranteed here by large bps)
+test prop_ceiling_below_accrued_debt_rejected(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_between(10000, 50000)),
+) fail {
+  let (debt, bps) = vals
+  // with_interest adds at least debt*1 (bps=10000 → +100%), so total >= 2*debt
+  // ceiling = debt means total > ceiling
+  expect within_ceiling(debt, bps, debt)
 }

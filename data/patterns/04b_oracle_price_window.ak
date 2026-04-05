@@ -1,7 +1,7 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use cardano/transaction.{InlineDatum, Input, OutputReference, Transaction}
-
 pub type OracleDatum {
   price: Int,
 }
@@ -83,4 +83,41 @@ test prop_price_above_max_fails(
 ) {
   let (max_price, price) = vals
   !price_in_window(price, 1, max_price)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// Price strictly below the window lower bound must always be rejected.
+test prop_fail_price_below_lo(
+  vals via fuzz.both(fuzz.int_between(10, 200), fuzz.int_between(1, 9)),
+) fail {
+  let (lo, price) = vals
+  // price in [1,9], lo in [10,200] → price < lo → price_in_window returns False
+  expect price_in_window(price, lo, lo + 100)
+}
+
+/// Price strictly above the window upper bound must always be rejected.
+test prop_fail_price_above_hi(
+  vals via fuzz.both(fuzz.int_between(1, 50), fuzz.int_between(51, 200)),
+) fail {
+  let (hi, price) = vals
+  // price in [51,200], hi in [1,50] → price > hi → price_in_window returns False
+  expect price_in_window(price, 1, hi)
+}
+
+/// An inverted window (lo > hi) always rejects any price.
+test prop_fail_inverted_window(
+  vals via fuzz.both(fuzz.int_between(1, 100), fuzz.int_between(101, 300)),
+) fail {
+  let (price, lo) = vals
+  // lo in [101,300], hi = lo - 1 < lo → window is empty → always False
+  expect price_in_window(price, lo, lo - 1)
+}
+
+/// Zero price is always below a strictly positive lower bound.
+test prop_fail_zero_price_positive_window(
+  lo via fuzz.int_between(1, 500),
+) fail {
+  // price = 0, lo >= 1 → 0 < lo → price_in_window returns False
+  expect price_in_window(0, lo, lo + 100)
 }

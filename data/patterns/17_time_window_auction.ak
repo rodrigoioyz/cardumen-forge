@@ -1,8 +1,8 @@
+
+/// Normalized auction phase derived from the tx validity range
 use aiken/fuzz
 use aiken/interval
 use cardano/transaction.{OutputReference, Transaction}
-
-/// Normalized auction phase derived from the tx validity range
 pub type AuctionPhase {
   Bidding
   Revealing
@@ -98,4 +98,43 @@ test prop_phases_mutually_exclusive(
   let bidding   = get_phase(interval.before(bid_end), bid_end, reveal_end)
   let settling  = get_phase(interval.after(reveal_end + 1), bid_end, reveal_end)
   bidding == Bidding && settling == Settling
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// PlaceBid during Settling phase must be rejected
+test prop_placebid_rejected_in_settling_phase(
+  reveal_end via fuzz.int_between(0, 500),
+) fail {
+  // interval.after(reveal_end + 1) is entirely after reveal_end, so phase = Settling
+  let phase = get_phase(interval.after(reveal_end + 1), reveal_end - 1, reveal_end)
+  expect phase_matches_redeemer(phase, PlaceBid)
+}
+
+/// RevealBid during Bidding phase must be rejected
+test prop_revealbid_rejected_in_bidding_phase(
+  bid_end via fuzz.int_between(1001, 2000),
+) fail {
+  // interval.before(1000) is entirely before bid_end (>1000), so phase = Bidding
+  let phase = get_phase(interval.before(1000), bid_end, bid_end + 500)
+  expect phase_matches_redeemer(phase, RevealBid)
+}
+
+/// Settle during Bidding phase must be rejected
+test prop_settle_rejected_in_bidding_phase(
+  bid_end via fuzz.int_between(1001, 2000),
+) fail {
+  // interval.before(1000) gives Bidding phase; Settle requires Settling
+  let phase = get_phase(interval.before(1000), bid_end, bid_end + 500)
+  expect phase_matches_redeemer(phase, Settle)
+}
+
+/// PlaceBid during Revealing phase must be rejected
+test prop_placebid_rejected_in_revealing_phase(
+  vals via fuzz.both(fuzz.int_between(0, 400), fuzz.int_between(600, 1000)),
+) fail {
+  let (bid_end, reveal_end) = vals
+  // interval.after(bid_end + 1) is past bid_end but not past reveal_end, so Revealing
+  let phase = get_phase(interval.after(bid_end + 1), bid_end, reveal_end)
+  expect phase_matches_redeemer(phase, PlaceBid)
 }

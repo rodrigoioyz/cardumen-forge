@@ -1,9 +1,9 @@
+
+/// Exactly one token minted under the policy
 use aiken/collection/dict
 use aiken/fuzz
 use cardano/assets.{PolicyId}
 use cardano/transaction.{OutputReference, Transaction}
-
-/// Exactly one token minted under the policy
 fn exactly_one_token(
   tokens: dict.Dict<ByteArray, Int>,
 ) -> Bool {
@@ -23,7 +23,14 @@ validator nft_mint {
     self: Transaction,
   ) -> Bool {
     let tokens = assets.tokens(self.mint, policy_id)
-    exactly_one_token(tokens)
+    let one_token = exactly_one_token(tokens)
+    let pairs = dict.to_pairs(tokens)
+    let valid_name =
+      when pairs is {
+        [Pair(name, _)] -> dict.size(dict.empty |> dict.insert(name, 1)) == 1
+        _ -> False
+      }
+    one_token && valid_name
   }
 }
 
@@ -56,4 +63,35 @@ test prop_exactly_one_token_single_correct(name via fuzz.bytearray_between(1, 32
 test prop_exactly_one_token_single_wrong_qty(name via fuzz.bytearray_between(1, 32)) {
   let d = dict.empty |> dict.insert(name, 2)
   !exactly_one_token(d)
+}
+
+// ── Fail tests ───────────────────────────────────────────────────────────────
+
+/// Empty dict always returns False — expect must fail
+test prop_fail_empty_dict_rejected() fail {
+  expect exactly_one_token(dict.empty)
+}
+
+/// A single token with quantity 0 is always rejected
+test prop_fail_zero_qty_rejected(name via fuzz.bytearray_between(1, 32)) fail {
+  let d = dict.empty |> dict.insert(name, 0)
+  expect exactly_one_token(d)
+}
+
+/// A single token with quantity >= 2 is always rejected
+test prop_fail_qty_above_one_rejected(
+  vals via fuzz.both(fuzz.bytearray_between(1, 32), fuzz.int_between(2, 1000)),
+) fail {
+  let (name, qty) = vals
+  let d = dict.empty |> dict.insert(name, qty)
+  expect exactly_one_token(d)
+}
+
+/// A single token with negative quantity is always rejected
+test prop_fail_negative_qty_rejected(
+  vals via fuzz.both(fuzz.bytearray_between(1, 32), fuzz.int_between(-1000, -1)),
+) fail {
+  let (name, qty) = vals
+  let d = dict.empty |> dict.insert(name, qty)
+  expect exactly_one_token(d)
 }

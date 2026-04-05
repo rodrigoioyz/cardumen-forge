@@ -1,9 +1,9 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use cardano/assets.{lovelace_of}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{Output, OutputReference, Transaction}
-
 pub type CdpDatum {
   owner:             ByteArray,
   co_signers:        List<ByteArray>,
@@ -93,4 +93,41 @@ test prop_co_signer_no_match_fails(
 
 test prop_undercollateralized_at_boundary(debt via fuzz.int_at_least(1)) {
   is_undercollateralized(debt * 119, debt * 100, 120)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+// No signatories means neither owner nor any co-signer can be found
+test prop_empty_signatories_unauthorised(
+  owner via cfuzz.verification_key_hash(),
+) fail {
+  expect authorised_repay([], owner, [owner])
+}
+
+// A well-collateralised position (collateral * 100 >= debt * ratio) must NOT
+// be flagged as undercollateralised.  Here collateral = debt * ratio, so
+// collateral * 100 == debt * ratio * 100, which is NOT strictly less than
+// debt * ratio * 100 — the helper must return False.
+test prop_healthy_position_not_undercollateralized(
+  vals via fuzz.both(fuzz.int_between(1, 200), fuzz.int_between(1, 300)),
+) fail {
+  let (ratio, debt) = vals
+  // collateral is large enough that collateral * 100 >= debt * ratio
+  let collateral = debt * ratio
+  expect is_undercollateralized(collateral, debt, ratio)
+}
+
+// Zero debt means a position can never be undercollateralised regardless of
+// collateral or ratio — the guard `debt > 0` makes the helper return False.
+test prop_zero_debt_not_undercollateralized(
+  collateral via fuzz.int_between(0, 1_000_000),
+) fail {
+  expect is_undercollateralized(collateral, 0, 150)
+}
+
+// A co-signer list that is entirely disjoint from the signatory set must
+// not grant authorisation when the owner is also absent.
+test prop_disjoint_cosigners_unauthorised() fail {
+  // signatories = [#"1111"], owner = #"2222", co_signers = [#"3333"]
+  expect authorised_repay([#"1111"], #"2222", [#"3333"])
 }

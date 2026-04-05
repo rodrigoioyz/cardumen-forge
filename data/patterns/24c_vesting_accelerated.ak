@@ -1,5 +1,7 @@
 use aiken/collection/list
 use aiken/fuzz
+use cardano/assets.{PolicyId}
+use cardano/transaction.{Transaction, Input, Output}
 
 /// Accelerated vesting: upon a trigger event, all remaining tranches vest immediately
 fn accelerated_vested(
@@ -23,6 +25,45 @@ fn normal_vested(
       acc + tranche
     },
   )
+}
+
+pub type VestingDatum {
+  total_amount: Int,
+  total_tranches: Int,
+  already_claimed: Int,
+  current_tranche_idx: Int,
+  accelerated: Bool,
+  beneficiary: ByteArray,
+}
+
+pub type VestingRedeemer {
+  ClaimNormal { tranche_idx: Int }
+  ClaimAccelerated
+}
+
+validator vesting_accelerated {
+  spend(
+    datum: Option<VestingDatum>,
+    redeemer: VestingRedeemer,
+    _own_ref: Data,
+    self: Transaction,
+  ) {
+    expect Some(d) = datum
+    let is_signed =
+      list.any(self.extra_signatories, fn(sig) { sig == d.beneficiary })
+    let claimable =
+      when redeemer is {
+        ClaimNormal { tranche_idx } ->
+          normal_vested(d.total_amount, tranche_idx, d.total_tranches)
+        ClaimAccelerated ->
+          accelerated_vested(d.total_amount, d.already_claimed)
+      }
+    is_signed && claimable > 0
+  }
+
+  else(_) {
+    fail
+  }
 }
 
 // ── Property tests ───────────────────────────────────────────────────────────

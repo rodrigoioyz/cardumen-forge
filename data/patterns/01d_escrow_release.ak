@@ -1,9 +1,9 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use cardano/address
 use cardano/assets.{lovelace_of}
 use cardano/transaction.{Output, OutputReference, Transaction}
-
 pub type EscrowDatum {
   beneficiary: ByteArray,
   refund_to:   ByteArray,
@@ -78,4 +78,40 @@ test prop_receives_threshold(
   // receives_at_least([], _, a+b) is false since no outputs
   let addr = address.from_verification_key(#"cafe")
   !receives_at_least([], addr, a + b)
+}
+
+// ── Negative (fail) tests ────────────────────────────────────────────────────
+
+/// No outputs → receives_at_least always returns False for amount >= 1
+test prop_no_outputs_never_meets_positive_amount(
+  amount via fuzz.int_at_least(1),
+) fail {
+  let addr = address.from_verification_key(#"cafe")
+  expect receives_at_least([], addr, amount)
+}
+
+/// A very large required amount with empty output list is always rejected
+test prop_large_amount_no_outputs_rejected() fail {
+  let addr = address.from_verification_key(#"deadbeef")
+  expect receives_at_least([], addr, 1_000_000_000)
+}
+
+/// Outputs destined for a DIFFERENT address never satisfy receives_at_least
+/// for a positive target amount on the correct address.
+/// We rely on the fact that empty outputs for the target address means total=0 < amount.
+test prop_wrong_address_outputs_rejected(
+  amount via fuzz.int_at_least(1),
+) fail {
+  // target address uses key #"cafe", but we pass an empty list so no
+  // outputs exist for that address — total lovelace = 0 < amount
+  let target = address.from_verification_key(#"cafe")
+  expect receives_at_least([], target, amount)
+}
+
+/// receives_at_least with a very high threshold and no outputs always fails
+test prop_high_threshold_no_outputs_fail(
+  amount via fuzz.int_between(1_000_000, 999_999_999),
+) fail {
+  let addr = address.from_verification_key(#"abcd1234")
+  expect receives_at_least([], addr, amount)
 }

@@ -1,3 +1,4 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use cardano/address
@@ -5,7 +6,6 @@ use cardano/assets
 use cardano/assets.{AssetName, PolicyId, lovelace_of}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{NoDatum, Output, OutputReference, Transaction}
-
 pub type PreserveDatum {
   owner:      ByteArray,
   nft_policy: PolicyId,
@@ -114,4 +114,52 @@ test prop_output_has_nft_qty_one(
       reference_script: None,
     }
   output_has_nft(output, policy, name)
+}
+
+// ── Negative (fail) property tests ──────────────────────────────────────────
+
+/// nft_preserved must return False when outputs list is empty
+test prop_nft_preserved_empty_outputs_fails(
+  vals via fuzz.both(cfuzz.policy_id(), cfuzz.asset_name()),
+) fail {
+  let (policy, name) = vals
+  expect nft_preserved([], policy, name)
+}
+
+/// nft_preserved must return False when the only output carries lovelace only
+test prop_nft_preserved_lovelace_only_fails(
+  vals via fuzz.both(cfuzz.policy_id(), cfuzz.asset_name()),
+) fail {
+  let (policy, name) = vals
+  let output =
+    Output {
+      address:          address.from_verification_key(#"aabb"),
+      value:            assets.from_lovelace(5000000),
+      datum:            NoDatum,
+      reference_script: None,
+    }
+  expect nft_preserved([output], policy, name)
+}
+
+/// output_has_nft must return False when the output holds quantity 0 of the asset
+test prop_output_has_nft_zero_qty_fails(
+  vals via fuzz.both(cfuzz.policy_id(), cfuzz.asset_name()),
+) fail {
+  let (policy, name) = vals
+  let output =
+    Output {
+      address:          address.from_verification_key(#"ccdd"),
+      value:            assets.from_lovelace(2000000),
+      datum:            NoDatum,
+      reference_script: None,
+    }
+  expect output_has_nft(output, policy, name)
+}
+
+/// owner_paid must return False when outputs list is empty and amount > 0
+test prop_owner_paid_no_outputs_fails(
+  vals via fuzz.both(cfuzz.verification_key_hash(), fuzz.int_between(1, 1000000000)),
+) fail {
+  let (owner_key, amount) = vals
+  expect owner_paid([], owner_key, amount)
 }

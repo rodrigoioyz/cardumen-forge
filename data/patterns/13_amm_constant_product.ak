@@ -1,10 +1,10 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use aiken/option
 use cardano/address
 use cardano/assets.{lovelace_of}
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type PoolDatum {
   reserve_a:  Int,
   reserve_b:  Int,
@@ -87,4 +87,47 @@ test prop_invariant_symmetric(
   let (a, b) = vals
   // invariant(a,b,c,d) == invariant(b,a,d,c)
   invariant_holds(a, b, a, b) == invariant_holds(b, a, b, a)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// Both new reserves are zero → product is 0, invariant must fail for any
+/// positive old reserves.
+test prop_invariant_fails_both_outputs_zero(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_at_least(1)),
+) fail {
+  let (old_a, old_b) = vals
+  expect invariant_holds(old_a, old_b, 0, 0)
+}
+
+/// One side of the new reserves is zero → product collapses to 0, invariant
+/// must reject regardless of the other side.
+test prop_invariant_fails_new_a_zero(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_at_least(1)),
+) fail {
+  let (old_r, new_b) = vals
+  // new_a = 0  →  0 * new_b * 1_000_000 = 0 < old_r*old_r*994_009 (positive)
+  expect invariant_holds(old_r, old_r, 0, new_b)
+}
+
+/// Draining almost all of one reserve while keeping the other tiny.
+/// new_a = 1, new_b = 1  →  product = 1, which is tiny compared to
+/// large old reserves whose product is old_a * old_b >= 10_000.
+test prop_invariant_fails_near_total_drain(
+  vals via fuzz.both(fuzz.int_at_least(100), fuzz.int_at_least(100)),
+) fail {
+  let (old_a, old_b) = vals
+  // 1 * 1 * 1_000_000 = 1_000_000  vs  old_a * old_b * 994_009 >= 100*100*994_009 = 9_940_090_000
+  expect invariant_holds(old_a, old_b, 1, 1)
+}
+
+/// Shrinking reserves by a large factor guarantees the invariant breaks.
+/// new_a = 1, new_b = old_b  but old_a is huge (>= 1_000_000).
+/// new_a * new_b * 1_000_000 = old_b * 1_000_000
+/// old_a * old_b * 994_009  >= 1_000_000 * old_b * 994_009  >> old_b * 1_000_000
+test prop_invariant_fails_massive_a_drain(
+  vals via fuzz.both(fuzz.int_at_least(1000000), fuzz.int_at_least(1)),
+) fail {
+  let (old_a, old_b) = vals
+  expect invariant_holds(old_a, old_b, 1, old_b)
 }

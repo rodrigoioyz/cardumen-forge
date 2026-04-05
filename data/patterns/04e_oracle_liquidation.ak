@@ -1,7 +1,7 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use cardano/transaction.{InlineDatum, Input, OutputReference, Transaction}
-
 pub type OracleDatum {
   price: Int,
 }
@@ -79,4 +79,36 @@ test prop_price_above_threshold_safe(
 ) {
   let (price, threshold) = vals
   !is_liquidatable(price, threshold)
+}
+
+// ── Negative (fail) tests ────────────────────────────────────────────────────
+
+/// Price equal to threshold is NOT liquidatable — expect fails because
+/// is_liquidatable returns False when price == threshold.
+test prop_price_equal_threshold_not_liquidatable(
+  threshold via fuzz.int_between(1, 1000),
+) fail {
+  expect is_liquidatable(threshold, threshold)
+}
+
+/// Price strictly above threshold is NOT liquidatable — expect fails because
+/// is_liquidatable returns False when price > threshold.
+test prop_price_above_threshold_not_liquidatable(
+  vals via fuzz.both(fuzz.int_between(51, 1000), fuzz.int_between(1, 50)),
+) fail {
+  let (price, threshold) = vals
+  expect is_liquidatable(price, threshold)
+}
+
+/// Zero price with zero threshold is NOT liquidatable — 0 < 0 is False.
+test prop_zero_price_zero_threshold_not_liquidatable() fail {
+  expect is_liquidatable(0, 0)
+}
+
+/// Negative threshold with price equal to that negative threshold is NOT
+/// liquidatable — price == threshold means False.
+test prop_negative_equal_values_not_liquidatable(
+  n via fuzz.int_between(-500, -1),
+) fail {
+  expect is_liquidatable(n, n)
 }

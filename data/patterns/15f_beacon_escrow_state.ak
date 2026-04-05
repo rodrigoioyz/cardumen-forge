@@ -1,3 +1,4 @@
+
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
 use aiken/fuzz
@@ -5,7 +6,6 @@ use cardano/address
 use cardano/assets.{PolicyId, quantity_of}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type EscrowState {
   Funded
   InProgress
@@ -111,4 +111,35 @@ test prop_dispute_inprogress_to_disputed() {
 test prop_resolve_disputed_both_ways() {
   valid_escrow_transition(Disputed, Released, Resolve { release: True })
     && valid_escrow_transition(Disputed, Refunded, Resolve { release: False })
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+// Start redeemer requires from==Funded; supplying InProgress guarantees False
+test prop_start_from_inprogress_rejected() fail {
+  expect valid_escrow_transition(InProgress, InProgress, Start)
+}
+
+// Complete redeemer requires from==InProgress; supplying Funded guarantees False
+test prop_complete_from_funded_rejected() fail {
+  expect valid_escrow_transition(Funded, Released, Complete)
+}
+
+// Resolve redeemer requires from==Disputed; supplying Funded guarantees False
+test prop_resolve_from_wrong_state_rejected(
+  release via fuzz.bool(),
+) fail {
+  expect valid_escrow_transition(Funded, Released, Resolve { release })
+}
+
+// beacon_preserved always returns False when outputs list is empty
+test prop_beacon_preserved_no_outputs_rejected(
+  vals via fuzz.both(cfuzz.policy_id(), cfuzz.asset_name()),
+) fail {
+  let (policy, name) = vals
+  let addr =
+    address.from_verification_key(
+      #"0000000000000000000000000000000000000000000000000000000000000000",
+    )
+  expect beacon_preserved([], addr, policy, name)
 }

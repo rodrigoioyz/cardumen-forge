@@ -5,7 +5,6 @@ use cardano/address
 use cardano/assets.{PolicyId, quantity_of}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type State {
   Idle
   Active
@@ -122,4 +121,58 @@ test prop_valid_transition_reset_always_to_idle() {
 
 test prop_valid_transition_wrong_target_fails() {
   !valid_transition(Idle, Locked, Advance)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// Closing state can never Advance to any target state
+test prop_closing_advance_always_invalid() fail {
+  expect valid_transition(Closing, Closing, Advance)
+}
+
+/// Reset must land on Idle; any non-Idle target is invalid.
+/// Active→Active with Reset must be rejected.
+test prop_reset_to_non_idle_rejected() fail {
+  expect valid_transition(Active, Active, Reset)
+}
+
+/// beacon_preserved returns False when outputs list is empty,
+/// regardless of the policy/name we look for.
+test prop_beacon_preserved_empty_outputs_rejected(
+  vals via fuzz.both(cfuzz.policy_id(), cfuzz.asset_name()),
+) fail {
+  let (policy, name) = vals
+  let own_addr = address.from_verification_key(#"abcdef0123456789")
+  expect beacon_preserved([], own_addr, policy, name)
+}
+
+/// Advance from Idle must go to Active; going to Locked is always invalid.
+test prop_idle_advance_to_locked_rejected() fail {
+  expect valid_transition(Idle, Locked, Advance)
+}
+
+/// Terminate must go to Closing; going to Idle is always invalid.
+test prop_terminate_to_idle_rejected() fail {
+  expect valid_transition(Active, Idle, Terminate)
+}
+
+/// Advance from Active must go to Locked; going to Closing is always invalid.
+test prop_active_advance_to_closing_rejected() fail {
+  expect valid_transition(Active, Closing, Advance)
+}
+
+/// beacon_preserved returns False when the own_addr does not match
+/// any output address, regardless of policy/name.
+test prop_beacon_preserved_wrong_addr_rejected(
+  vals via fuzz.both(cfuzz.policy_id(), cfuzz.asset_name()),
+) fail {
+  let (policy, name) = vals
+  // own_addr uses one key, but no outputs exist at all
+  let own_addr = address.from_verification_key(#"1111111111111111111111111111111111111111111111111111111111111111")
+  expect beacon_preserved([], own_addr, policy, name)
+}
+
+/// Reset from Closing to Active is always invalid (not Idle).
+test prop_closing_reset_to_active_rejected() fail {
+  expect valid_transition(Closing, Active, Reset)
 }

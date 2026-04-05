@@ -1,8 +1,10 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use cardano/assets.{lovelace_of}
 use cardano/transaction.{Output, OutputReference, Transaction}
-
+  use cardano/assets
+  use cardano/address.{from_verification_key}
 pub type CdpDatum {
   owner:               ByteArray,
   collateral_lovelace: Int,
@@ -95,4 +97,48 @@ test prop_undercollateralized_inverse_of_overcollateralized(
   let over  = collateral * 100 >= debt * ratio
   // They cannot both be true simultaneously
   !(under && over)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// A well-collateralized position (collateral*100 >= debt*ratio) must NOT
+/// be flagged as undercollateralized.
+test prop_overcollateralized_not_undercollateralized(
+  debt via fuzz.int_between(1, 1000),
+) fail {
+  // collateral = debt * 200, ratio = 150  →  debt*200*100 >= debt*150  always
+  expect is_undercollateralized(debt * 200, debt, 150)
+}
+
+/// Zero debt can never make a position undercollateralized, regardless of
+/// collateral and ratio.
+test prop_zero_debt_never_undercollateralized(
+  vals via fuzz.both(fuzz.int_at_least(0), fuzz.int_at_least(1)),
+) fail {
+  let (collateral, ratio) = vals
+  expect is_undercollateralized(collateral, 0, ratio)
+}
+
+/// Negative debt (erroneous datum) must also be rejected by the guard.
+test prop_negative_debt_not_undercollateralized(
+  debt via fuzz.int_between(-1000, -1),
+) fail {
+  // debt <= 0 so the `debt > 0` guard is False
+  expect is_undercollateralized(0, debt, 120)
+}
+
+/// When no outputs are provided the liquidator has paid nothing, so
+/// liquidator_pays_debt must return False for any positive debt requirement.
+test prop_no_outputs_liquidator_pays_nothing(
+  debt via fuzz.int_at_least(1),
+) fail {
+  let dummy_addr = from_verification_key(#"00")
+  let dummy_output =
+    Output {
+      address: dummy_addr,
+      value: assets.zero,
+      datum: transaction.NoDatum,
+      reference_script: None,
+    }
+  expect liquidator_pays_debt([], dummy_output, debt)
 }

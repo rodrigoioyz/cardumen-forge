@@ -1,3 +1,4 @@
+
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
 use aiken/fuzz
@@ -5,7 +6,6 @@ use cardano/address
 use cardano/assets.{PolicyId, quantity_of}
 use cardano/fuzz as cfuzz
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type Step {
   Step0
   Step1
@@ -112,4 +112,33 @@ test prop_abort_resets_to_step0() {
 
 test prop_step3_next_fails() {
   !valid_step_transition(Step3, Step3, Next)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+/// Step3 with Next redeemer always returns False regardless of target step
+test prop_step3_next_always_invalid() fail {
+  expect valid_step_transition(Step3, Step3, Next)
+}
+
+/// Rollback from Step0 is always invalid
+test prop_rollback_from_step0_invalid() fail {
+  expect valid_step_transition(Step0, Step0, Rollback)
+}
+
+/// Next from Step0 must land on Step1; landing on Step2 is always invalid
+test prop_next_step0_wrong_target_invalid() fail {
+  expect valid_step_transition(Step0, Step2, Next)
+}
+
+/// beacon_preserved with empty outputs list always returns False
+test prop_beacon_preserved_no_outputs_fails(
+  pair via fuzz.both(cfuzz.policy_id(), cfuzz.asset_name()),
+) fail {
+  let (pid, bname) = pair
+  let addr =
+    address.from_verification_key(
+      #"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    )
+  expect beacon_preserved([], addr, pid, bname)
 }

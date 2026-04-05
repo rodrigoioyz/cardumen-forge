@@ -1,5 +1,6 @@
 use aiken/collection/list
 use aiken/fuzz
+use cardano/transaction.{Transaction}
 
 /// Batch liquidation: process multiple positions, count how many are liquidatable
 fn count_liquidatable(
@@ -20,6 +21,36 @@ fn count_liquidatable(
 /// All positions in the batch must be liquidatable
 fn all_liquidatable(positions: List<(Int, Int)>, threshold: Int) -> Bool {
   count_liquidatable(positions, threshold) == list.length(positions)
+}
+
+// ── Validator ─────────────────────────────────────────────────────────────────
+
+pub type LiquidationDatum {
+  positions: List<(Int, Int)>,
+  threshold: Int,
+}
+
+pub type LiquidationRedeemer {
+  min_liquidatable: Int,
+}
+
+validator liquidation_batch {
+  spend(
+    datum: Option<LiquidationDatum>,
+    redeemer: LiquidationRedeemer,
+    _output_ref: Data,
+    _self: Transaction,
+  ) {
+    expect Some(d) = datum
+    let liquidatable = count_liquidatable(d.positions, d.threshold)
+    let meets_minimum = liquidatable >= redeemer.min_liquidatable
+    let batch_valid = all_liquidatable(d.positions, d.threshold)
+    meets_minimum || batch_valid
+  }
+
+  else(_) {
+    fail
+  }
 }
 
 // ── Property tests ───────────────────────────────────────────────────────────

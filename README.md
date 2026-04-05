@@ -17,15 +17,17 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 > | | |
 > |---|---|
 > | **Active model** | cardano-dev v8 (trained) · v9 next |
-> | **Active dataset** | dataset_v23.jsonl — 3,739 examples · stdlib v3 · compile-verified |
-> | **Pattern library** | 150 fuzz-verified `.ak` files in `data/patterns/` (01–25, variants a–f) |
-> | **Benchmark** | 15 heuristic checks + **real `aiken check`** via PTY sandbox (stdlib v3.0.0) |
+> | **Active dataset** | dataset_v23.jsonl — **4,610 examples** · stdlib v3 · 97.7% compile-verified |
+> | **Pattern library** | 150 fuzz-verified `.ak` files in `data/patterns/` (01–25, variants a–f) · **+300 DeFi variants via expand_patterns.py** |
+> | **Benchmark** | **benchmark_v2.json — 257 prompts · 257/257 pass** · `aiken check` via PTY sandbox (stdlib v3.0.0) |
 > | **v8 heuristic** | **15/15 (100%)** — first model to achieve perfect heuristic score |
 > | **v8 compile** | **10/15 (67%)** · v7 was 9/15 (60%) |
 > | **Aiken stdlib** | v3.0.0 · Plutus v3 |
 > | **Scripts** | → [Project Structure](#part-ix--project-structure) |
 >
 > v8 is the first model trained on the fully v3-migrated and compile-verified dataset. It achieved 15/15 (100%) heuristic and 10/15 (67%) compile — both new records. Remaining compile failures: `pub type` leak, `MintedValue` removed constructor, `GovernanceCommittee` wrong name, missing `use aiken/interval`.
+>
+> **Since v8:** Dataset expanded from 3,739 → 4,610 examples (+871). DeFi coverage (families 16–25) grew from ~60 → 410 examples. `PLAUSIBLE_NEEDS_CHECK` queue cleared to 0. `benchmark_v2.json` created with 257 compile-verified reference solutions (257/257 pass).
 
 ---
 
@@ -288,9 +290,9 @@ Then apply the cleaning pipeline (v15→v22) — see [Cleaning pipeline](#cleani
 
 | Metric | Value |
 |--------|-------|
-| Total examples | **3,739** |
-| Languages | EN ~60% / ES ~40% |
-| Sources | 15 + misc combined sources |
+| Total examples | **4,610** |
+| Languages | EN ~65% / ES ~33% / untagged ~2% |
+| Sources | 15 + misc combined sources + fuzz patterns + DeFi expansions |
 | `fn` prefix errors | **0** (was 21.5% in v14) |
 | VERIFIED_V3_ALIGNED | **~94%** (was 53% in v14) |
 | PLAUSIBLE_NEEDS_CHECK | ~1% (was 45% in v14) |
@@ -325,9 +327,11 @@ Full version history in [Dataset version history](#dataset-version-history).
 | `cip068_examples` | 32 | CIP-68 reference NFT + user token pair validation | VERIFIED |
 | `correction_set_v3` | 30 | v8 hallucination corrections (5 patterns). **100% compile-verified.** | CORRECTION |
 | *(misc combined)* | 231 | `aiken_docs.json + aiken_stdlib.json` (185), `aiken_stdlib.json` (22), `aiken_docs.json` (22), `aiken_docs.json + aiken_design_patterns.json` (2) | VERIFIED |
-| **Total** | **3,739** | | |
+| `fuzz_patterns_v3` | 150 | 150 `.ak` pattern files (25 families × 6 variants), verified with `aiken check --max-success 200` | VERIFIED_FUZZ_PASS |
+| `expand_patterns_v1` | 300 | 5 instruction variants per DeFi pattern file (families 16–25): implement, complete_from_stub, add_fuzz_tests, impl_from_description, complete_from_imports | VERIFIED_FUZZ_PASS |
+| **Total** | **4,610** | | |
 
-**Status distribution:** VERIFIED_V3_ALIGNED ~94% / VERIFIED_V3 ~2% / CORRECTION ~3% / PLAUSIBLE_NEEDS_CHECK ~1%
+**Status distribution:** VERIFIED_V3_ALIGNED 84% / VERIFIED_FUZZ_PASS 11% / CORRECTION 2% / VERIFIED_V3 1% / PLAUSIBLE_SKIP_SANDBOX 0.3% · **PLAUSIBLE_NEEDS_CHECK: 0**
 
 > **Note on two Qwen models:** The fine-tuned model (`cardano-dev`) is based on **Qwen3.5-4B** (4B params, base for training). The benchmark comparison baseline is **qwen2.5-coder-7b** (7B params, separate general-purpose coder model). These are different models used for different purposes.
 
@@ -488,7 +492,7 @@ dataset_v22.jsonl  3,748 examples
    dedup + compile verification + import fixes → v23
         │
         ▼
-dataset_v23.jsonl  3,739 examples  ← ACTIVE TRAINING SET
+dataset_v23.jsonl  4,610 examples  ← ACTIVE TRAINING SET
         │
         ▼
 [data/patterns/ — 150 fuzz-verified .ak files]
@@ -592,7 +596,8 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | **v22 + oracle/cip068** | **3,582** | **`generate_oracle_examples.py`: +47 oracle patterns. `generate_cip068_examples.py`: +32 CIP-68 examples. Dedup pass: 3 exact removed → 3,579.** |
 | **v22 + with_tests** | **3,748** | **`generate_with_tests.py` + `add_tests_to_verified.py`: +169 examples with embedded `test` blocks across 15+ stdlib topics. Compile-verified via `aiken check`.** |
 | **v23** | **3,739** | **Dedup pass + compile verification + import fixes (`fix_import_keyword.py`). 9 broken examples removed. Active dataset.** |
-| **v24 (in progress)** | **~3,889** | **+150 fuzz-verified patterns via `patterns_to_dataset.py`. 25 categories × 6 variants. All pass `aiken check --max-success=200`. Zero dead code, zero warnings.** |
+| **v23 + patterns** | **4,219→4,354** | **`fix_plausible.py`: 29 PLAUSIBLE resolved (9 purged, 7 repaired, 13 SKIP_SANDBOX). `patterns_to_dataset.py`: 150 `.ak` files compiled with `--max-success 200` → +135 net new examples.** |
+| **v23 + expand** | **4,610** | **`expand_patterns.py` (new): 5 variants × 60 DeFi files (families 16–25) → +300 examples. DeFi coverage: ~60 → 410. PLAUSIBLE_NEEDS_CHECK: 0.** |
 
 ### What changed: v22 → v23 → v24
 
@@ -895,7 +900,154 @@ VERIFIED API PATTERNS:
 
 ---
 
+## Dataset v23 — What Changed
+
+### PLAUSIBLE_NEEDS_CHECK Resolution (fix_plausible.py)
+
+- 29 examples flagged as `PLAUSIBLE_NEEDS_CHECK` fully resolved; queue is now 0.
+- 9 examples purged: outputs were prose or markdown, not valid Aiken code.
+- 7 examples repaired: fixes included missing imports, incorrect types, and underscore-prefixed variable names that violated Aiken naming conventions.
+- 13 examples reclassified as `PLAUSIBLE_SKIP_SANDBOX`: depend on `aiken_scott_utils`, a library absent from the sandbox environment.
+- Net effect: 4,228 → 4,219 examples (after purges, before new ingestion).
+
+### Pattern Ingestion — 150 Verified `.ak` Files (patterns_to_dataset.py)
+
+- 150 `.ak` pattern files validated end-to-end with `aiken check --max-success 200`.
+- 135 net new examples added to the dataset after deduplication.
+- 1 failure identified (`21e_order_fee_collection`): fuzz test used a weak assertion (`<` comparison) instead of an algebraic identity; fixed to `seller_proceeds == gross - fill_fee`.
+- After the fix: 150/150 files pass.
+
+### DeFi Variant Expansion — expand_patterns.py (new script)
+
+- New script that generates 5 instruction variants per `.ak` file across DeFi families 16–25.
+- Variant types: `implement`, `complete_from_stub`, `add_fuzz_tests`, `impl_from_description`, `complete_from_imports`.
+- Deduplication keyed on `SHA256(instruction + output)`, not output alone, to preserve semantically distinct examples with identical code.
+- PTY used instead of `subprocess` to capture full compiler error output from `aiken`.
+- Parser fix: brace-search window for handler `{` extended from 5 to 12 lines, resolving missed matches on multi-line `spend` signatures.
+- Total contribution: +300 new DeFi examples from 60 source files × 5 variants.
+
+### Metrics — Before vs. After
+
+| Metric | Before | After |
+|---|---|---|
+| Total examples | 4,228 | 4,610 |
+| `VERIFIED_FUZZ_PASS` | 285 | 540 |
+| DeFi examples (families 16–25) | ~60 | 410 |
+| Examples with `input` field | 27% | 28% |
+| `PLAUSIBLE_NEEDS_CHECK` | 29 | 0 |
+
+---
+
+## Pattern Library
+
+The library contains 150 Aiken source files (`.ak`) organized into 25 families covering the most common Cardano smart contract patterns. These files serve as the primary high-quality source for the fine-tuning dataset.
+
+### Families
+
+| ID | Category | Files |
+|----|----------|-------|
+| 01 | DEX swap, escrow | 6 |
+| 02 | NFT minting | 6 |
+| 03 | Burn validators | 6 |
+| 04 | Oracle / reference inputs | 6 |
+| 05 | CIP-68 mint/burn | 6 |
+| 06 | Multisig | 6 |
+| 07 | CDP open/collateral | 6 |
+| 08 | CDP liquidation | 6 |
+| 09 | Loan validators | 6 |
+| 10 | NFT collateral/auction | 6 |
+| 11 | CIP-68 credential | 6 |
+| 12 | CIP-68 update | 6 |
+| 13 | AMM constant product | 6 |
+| 14 | Merkle whitelist | 6 |
+| 15 | Beacon / state lifecycle | 6 |
+| 16 | LP token (DeFi) | 6 |
+| 17 | Auction (DeFi) | 6 |
+| 18 | Vault (DeFi) | 6 |
+| 19 | Parameterized vault (DeFi) | 6 |
+| 20 | Stablecoin (DeFi) | 6 |
+| 21 | Order book (DeFi) | 6 |
+| 22 | Thread NFT (DeFi) | 6 |
+| 23 | Batch swap (DeFi) | 6 |
+| 24 | Vesting (DeFi) | 6 |
+| 25 | Liquidation (DeFi) | 6 |
+
+### File format
+
+Each `.ak` file follows a consistent structure:
+
+1. **Doc comments** (`///`) — natural-language description used as the `instruction` field in the dataset.
+2. **Imports** — standard `use aiken/...` declarations covering only required modules.
+3. **Helper functions** — pure, standalone functions encoding the core business logic.
+4. **Validator** — a top-level `validator` block with one or more handlers (`spend`, `mint`, or `withdraw`).
+5. **Property-based fuzz tests** — `test` blocks using the `fuzz` library (`fuzz.both()`, `via` keyword, `fail` assertions) that exercise the validator under randomized inputs.
+
+### Ingestion pipeline
+
+**Base conversion** — one training example per file:
+
+```bash
+python3 scripts/patterns_to_dataset.py --append-to data/processed/dataset_v23.jsonl
+python3 scripts/patterns_to_dataset.py --pattern 21e_order_fee_collection.ak  # single file
+```
+
+**DeFi expansion** (families 16–25) — five task variants per file:
+
+```bash
+python3 scripts/expand_patterns.py \
+  --families 16,17,18,19,20,21,22,23,24,25 \
+  --max-success 200 \
+  --append-to data/processed/dataset_v23.jsonl
+```
+
+---
+
 ## Part VI — Evaluation & Benchmark
+
+### Evaluation — benchmark_v2
+
+`benchmark_v2.json` contains 257 reference solutions covering the full range of validator categories. Each solution is a self-contained Aiken program verified to compile and pass `aiken check` against the project sandbox (`eval/aiken_sandbox/`).
+
+**Running the benchmark:**
+
+```bash
+# Verify all 257 reference solutions
+python3 eval_benchmark.py --self-test
+
+# Filter to a single category
+python3 eval_benchmark.py --self-test --category mint/one_shot
+
+# Test specific IDs
+python3 eval_benchmark.py --self-test --ids withdraw_02,withdraw_09
+
+# Re-run only the cases that failed in the last selftest log
+python3 eval_benchmark.py --retest-failed
+
+# Show failures only
+python3 eval_benchmark.py --self-test --fail-only
+```
+
+The runner uses a PTY (pseudo-terminal) to capture the full `aiken check` output, including ANSI diagnostics that are suppressed when Aiken detects a non-interactive pipe. Logs saved to `logs/benchmark_v2_selftest_{ts}.json`.
+
+| Category | n |
+|---|---|
+| spend/signature | 20 |
+| spend/ada_payment | 24 |
+| spend/time | 25 |
+| spend/nft_gate | 25 |
+| spend/datum_inline | 25 |
+| mint/one_shot | 25 |
+| mint/burn | 25 |
+| spend/reference_input | 25 |
+| spend/multisig_threshold | 25 |
+| governance/vote | 23 |
+| withdraw | 15 |
+
+**Current status: 257 / 257 pass.**
+
+> **Note — `Transaction.withdrawals` in Aiken v3:** `self.withdrawals` has type `Pairs<Credential, Lovelace>`, not `Dict<Credential, Int>`. Using `dict.get()` on this field produces a `type_mismatch` compile error. Use `pairs.get_first(self.withdrawals, account)` with `use aiken/collection/pairs`. Three benchmark entries (`withdraw_02`, `withdraw_09`, `withdraw_14`) were patched after this was caught during the initial self-test run.
+
+---
 
 ### Evaluation suite — 15 prompts
 
@@ -1154,6 +1306,18 @@ The model had learned a completely invented API consistent across all 20 prompts
 ## Part VIII — Development Log
 
 This section documents every bug and lesson learned during the project. It exists because the benchmark and dataset both had bugs before producing useful results — and these bugs were often more instructive than the successes.
+
+---
+
+### Session — April 2026 (dataset v23 expansion)
+
+**Dataset grew from 3,739 → 4,610 examples (+871).** Key actions:
+
+- `fix_plausible.py`: 29 `PLAUSIBLE_NEEDS_CHECK` resolved — 9 purged (prose outputs), 7 repaired (import/type fixes), 13 `PLAUSIBLE_SKIP_SANDBOX`. Queue cleared to 0 for the first time.
+- `patterns_to_dataset.py`: 150 `.ak` pattern files compiled with `aiken check --max-success 200`. +135 net new examples. 1 fix: `21e_order_fee_collection` fuzz test used weak `<` assertion — corrected to exact algebraic identity `seller_proceeds == gross - fill_fee`.
+- `expand_patterns.py` (new script): 5 instruction variants per `.ak` file across DeFi families 16–25. PTY capture for full aiken error output. Dedup by `SHA256(instruction + output)`. Parser fix: brace-search window 5 → 12 lines for multi-line `spend` signatures. +300 new DeFi examples.
+- `eval_benchmark.py` (new script): compile-verifies all reference solutions in `benchmark_v2.json`. PTY capture, `--retest-failed`, `--ids`, `--category` flags. Fixed `withdraw_02/09/14`: `dict.get()` → `pairs.get_first()` (`Transaction.withdrawals` is `Pairs<Credential, Lovelace>` in Aiken v3, not `Dict`). Final: **257/257 pass**.
+- DeFi coverage: ~60 → 410 examples (families 16–25).
 
 ---
 
@@ -1486,7 +1650,7 @@ cardumen-forge/
 │   │   └── hydra_plutus.json               # Hydra + Plutus integration reference
 │   │
 │   └── processed/
-│       ├── dataset_v23.jsonl               # 3,739 examples — ACTIVE TRAINING SET
+│       ├── dataset_v23.jsonl               # 4,610 examples — ACTIVE TRAINING SET
 │       ├── dataset_v22.jsonl               # 3,748 examples — previous version
 │       ├── dataset_v14_eval.jsonl          # 374 examples — HOLDOUT (do not train on)
 │       ├── components/                     # intermediate outputs per source
@@ -1552,4 +1716,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*cardano-dev v8 · dataset v23 · 3,739 examples · 15/15 heuristic · 10/15 compile · stdlib v3 · 150 fuzz-verified patterns (v24 in progress)*
+*cardano-dev v8 · dataset v23 · **4,610 examples** · 15/15 heuristic · 10/15 compile · stdlib v3 · 150 fuzz-verified patterns · 300 DeFi variants · benchmark_v2 257/257 pass · v9 next*

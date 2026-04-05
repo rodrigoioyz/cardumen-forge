@@ -1,6 +1,6 @@
+
 use aiken/fuzz
 use cardano/transaction.{OutputReference, Transaction}
-
 pub type RepayDatum {
   owner:               ByteArray,
   collateral_lovelace: Int,
@@ -64,4 +64,42 @@ test prop_repay_zero_debt_unhealthy(
 ) {
   let (collateral, ratio) = vals
   !after_repay_healthy(collateral, 5, 5, ratio)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+// Collateral is 0, so collateral*100 = 0 < debt*ratio for any positive debt & ratio.
+test prop_zero_collateral_never_overcollateralized(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_at_least(1)),
+) fail {
+  let (debt, ratio) = vals
+  expect is_overcollateralized(0, debt, ratio)
+}
+
+// Repaying the full debt leaves new_debt = 0, which fails new_debt > 0.
+test prop_full_repay_always_unhealthy(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_at_least(1)),
+) fail {
+  let (debt, collateral) = vals
+  // repay_amt == debt  =>  new_debt = 0  =>  after_repay_healthy returns False
+  expect after_repay_healthy(collateral, debt, debt, 150)
+}
+
+// Collateral is far too low: collateral=1, debt>=2, ratio>=200
+// collateral*100 = 100  <  debt*ratio >= 2*200 = 400
+test prop_undercollateralized_after_repay(
+  vals via fuzz.both(fuzz.int_between(2, 1000), fuzz.int_between(200, 500)),
+) fail {
+  let (debt, ratio) = vals
+  // repay 1 so new_debt = debt-1 >= 1; collateral=1 is far too small
+  expect after_repay_healthy(1, debt, 1, ratio)
+}
+
+// Repaying more than the debt makes new_debt negative (<= 0), always unhealthy.
+test prop_overrepay_always_unhealthy(
+  vals via fuzz.both(fuzz.int_between(1, 500), fuzz.int_between(1, 500)),
+) fail {
+  let (debt, extra) = vals
+  // repay_amt = debt + extra  =>  new_debt = -extra <= 0
+  expect after_repay_healthy(debt * 200, debt, debt + extra, 150)
 }

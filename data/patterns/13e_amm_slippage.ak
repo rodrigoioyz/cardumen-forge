@@ -1,10 +1,10 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use aiken/option
 use cardano/address
 use cardano/assets.{lovelace_of}
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type PoolDatum {
   reserve_a: Int,
   reserve_b: Int,
@@ -93,4 +93,52 @@ test prop_slippage_fails_min_too_high(
 
 test prop_invariant_equal(r via fuzz.int_at_least(1)) {
   invariant_holds(r, r, r, r)
+}
+
+// ── Negative (fail) tests ────────────────────────────────────────────────────
+
+/// slippage_ok returns False when min_output exceeds the actual output.
+/// actual output = old_b - new_b = delta, but min_output = delta + gap (gap >= 1)
+test prop_slippage_min_exceeds_output(
+  vals via fuzz.both(
+    fuzz.both(fuzz.int_at_least(1), fuzz.int_between(1, 100)),
+    fuzz.int_between(1, 50),
+  ),
+) fail {
+  let ((old_b, delta), gap) = vals
+  // output = delta, min_output = delta + gap  →  output < min_output  →  False
+  expect slippage_ok(old_b, old_b - delta, delta + gap)
+}
+
+/// slippage_ok returns False when new_b >= old_b (zero or negative output)
+/// but a strictly positive min_output is required.
+test prop_slippage_no_output_positive_min(
+  vals via fuzz.both(
+    fuzz.int_at_least(1),
+    fuzz.int_between(1, 500),
+  ),
+) fail {
+  let (old_b, min_out) = vals
+  // new_b == old_b  →  output = 0 < min_out  →  False
+  expect slippage_ok(old_b, old_b, min_out)
+}
+
+/// invariant_holds returns False when new reserves are strictly smaller than
+/// the product allows. Shrinking both reserves to 1 while originals are large
+/// violates k: 1*1*1000000 < old_a*old_b*994009 for old_a,old_b >= 2.
+test prop_invariant_violated_shrunken_reserves(
+  vals via fuzz.both(fuzz.int_between(2, 1000), fuzz.int_between(2, 1000)),
+) fail {
+  let (old_a, old_b) = vals
+  // new_a=1, new_b=1  →  1*1*1000000 = 1000000 < old_a*old_b*994009 for old_a,old_b>=2
+  expect invariant_holds(old_a, old_b, 1, 1)
+}
+
+/// invariant_holds returns False when new_b is driven to zero (pool drained).
+test prop_invariant_violated_zero_new_b(
+  vals via fuzz.both(fuzz.int_between(1, 1000), fuzz.int_between(1, 1000)),
+) fail {
+  let (old_a, old_b) = vals
+  // new_b=0  →  product=0 < old_a*old_b*994009  →  False
+  expect invariant_holds(old_a, old_b, old_a, 0)
 }

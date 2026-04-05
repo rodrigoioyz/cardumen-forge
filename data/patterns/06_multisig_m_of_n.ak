@@ -35,7 +35,17 @@ validator multisig {
     self: Transaction,
   ) -> Bool {
     expect Some(d) = datum
-    count_matching(d.signers, self.extra_signatories) >= d.threshold
+    let num_signers = list.length(d.signers)
+    let threshold = d.threshold
+    // Threshold must be a positive number and not exceed the signer list
+    let threshold_valid = threshold > 0 && threshold <= num_signers
+    // There must be at least one declared signer
+    let has_signers = num_signers > 0
+    // Count how many required signers actually signed this transaction
+    let matched = count_matching(d.signers, self.extra_signatories)
+    // The number of matched signers must meet or exceed the threshold
+    let quorum_reached = matched >= threshold
+    threshold_valid && has_signers && quorum_reached
   }
 }
 

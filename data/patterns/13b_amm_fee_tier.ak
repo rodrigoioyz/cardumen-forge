@@ -1,10 +1,10 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use aiken/option
 use cardano/address
 use cardano/assets.{lovelace_of}
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
-
 pub type PoolDatum {
   reserve_a:      Int,
   reserve_b:      Int,
@@ -94,4 +94,47 @@ test prop_fee_tier_grows_holds(
 ) {
   let (old, extra) = vals
   invariant_with_fee(old, old, old + extra, old + extra, 994009)
+}
+
+// ── Negative / fail tests ────────────────────────────────────────────────────
+
+// Both outputs at zero must always violate the invariant for any positive reserves.
+test prop_both_outputs_zero_fails(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_at_least(1)),
+) fail {
+  let (old_a, old_b) = vals
+  // new_a=0, new_b=0 => 0 * 0 * 1_000_000 = 0 < old_a * old_b * fee_multiplier (> 0)
+  expect invariant_with_fee(old_a, old_b, 0, 0, 994009)
+}
+
+// Draining one side to zero always breaks the invariant (old reserves positive).
+test prop_one_side_drained_fails(
+  vals via fuzz.both(fuzz.int_at_least(1), fuzz.int_at_least(1)),
+) fail {
+  let (old_a, old_b) = vals
+  // new_b=0 => product=0, invariant cannot hold for positive old reserves
+  expect invariant_with_fee(old_a, old_b, old_a, 0, 994009)
+}
+
+// A fee_multiplier strictly greater than 1_000_000 means the pool must grow —
+// equal reserves therefore always fail.
+test prop_fee_multiplier_above_million_fails(
+  vals via fuzz.both(
+    fuzz.int_at_least(1),
+    fuzz.int_between(1000001, 2000000),
+  ),
+) fail {
+  let (r, fm) = vals
+  // r * r * 1_000_000 < r * r * fm  when fm > 1_000_000
+  expect invariant_with_fee(r, r, r, r, fm)
+}
+
+// Reserves that shrink drastically (new < old / 2) always break the invariant
+// because (old/2)^2 * 1_000_000 < old^2 * 994009 for any old >= 2.
+test prop_halved_reserves_fail(
+  old via fuzz.int_between(2, 1000000),
+) fail {
+  let half = old / 2
+  // half * half * 1_000_000 = old^2/4 * 1_000_000 < old^2 * 994009
+  expect invariant_with_fee(old, old, half, half, 994009)
 }

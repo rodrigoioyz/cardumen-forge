@@ -1,5 +1,6 @@
 use aiken/collection/list
 use aiken/fuzz
+use cardano/transaction.{Transaction}
 
 /// Rollup: aggregate total input and total output for a batch of swaps
 /// Returns (total_in, total_out)
@@ -29,6 +30,32 @@ fn all_positive(swaps: List<(Int, Int)>) -> Bool {
 fn rollup_ok(swaps: List<(Int, Int)>, min_total_out: Int) -> Bool {
   let (_, total_out) = batch_totals(swaps)
   total_out >= min_total_out
+}
+
+// ── Redeemer type ────────────────────────────────────────────────────────────
+
+pub type BatchRedeemer {
+  swaps: List<(Int, Int)>,
+  min_total_out: Int,
+}
+
+// ── Validator ────────────────────────────────────────────────────────────────
+
+validator batch_rollup {
+  mint(redeemer: BatchRedeemer, _policy_id: ByteArray, _self: Transaction) {
+    let BatchRedeemer { swaps, min_total_out } = redeemer
+    // Ensure every swap has positive in/out values
+    expect all_positive(swaps)
+    // Ensure total output across the batch meets the minimum threshold
+    expect rollup_ok(swaps, min_total_out)
+    // Also verify the batch is non-empty
+    let (total_in, _) = batch_totals(swaps)
+    total_in > 0
+  }
+
+  else(_) {
+    fail
+  }
 }
 
 // ── Property tests ───────────────────────────────────────────────────────────

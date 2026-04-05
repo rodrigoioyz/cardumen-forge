@@ -1,8 +1,8 @@
+
 use aiken/collection/list
 use aiken/fuzz
 use aiken/interval
 use cardano/transaction.{OutputReference, Transaction}
-
 pub type LoanDatum {
   lender:          ByteArray,
   borrower:        ByteArray,
@@ -95,4 +95,44 @@ test prop_cannot_rollover_max_reached(
 ) {
   let (deadline, max) = vals
   !can_rollover(interval.before(deadline), deadline, max, max)
+}
+
+// ── Negative (fail) tests ────────────────────────────────────────────────────
+
+/// can_rollover must return False when tx is entirely after the deadline,
+/// regardless of how many rollovers remain.
+test prop_fail_can_rollover_after_deadline(
+  vals via fuzz.both(fuzz.int_between(0, 500), fuzz.int_between(1, 10)),
+) fail {
+  let (deadline, max) = vals
+  // interval.after(deadline + 1) is entirely after `deadline`
+  expect can_rollover(interval.after(deadline + 1), deadline, 0, max)
+}
+
+/// can_rollover must return False when rollovers_used >= max_rollovers,
+/// even well before the deadline.
+test prop_fail_can_rollover_exhausted(
+  vals via fuzz.both(fuzz.int_between(2000, 5000), fuzz.int_between(1, 20)),
+) fail {
+  let (deadline, max) = vals
+  // used == max means no rollovers left
+  expect can_rollover(interval.before(deadline), deadline, max, max)
+}
+
+/// can_rollover must return False when both conditions fail:
+/// past deadline AND rollovers exhausted.
+test prop_fail_can_rollover_past_deadline_and_exhausted(
+  vals via fuzz.both(fuzz.int_between(0, 300), fuzz.int_between(1, 5)),
+) fail {
+  let (deadline, max) = vals
+  expect can_rollover(interval.after(deadline + 1), deadline, max, max)
+}
+
+/// is_after_deadline must return False when the validity range ends
+/// strictly before the deadline (i.e. interval.before(deadline - 1)).
+test prop_fail_is_after_deadline_before_range(
+  deadline via fuzz.int_between(2, 1000),
+) fail {
+  // interval.before(deadline - 1) is entirely before `deadline`
+  expect is_after_deadline(interval.before(deadline - 1), deadline)
 }
