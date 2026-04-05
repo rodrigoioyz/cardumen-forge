@@ -229,9 +229,10 @@ This separation matters: a model can score 100% heuristic while still failing to
 | Method | QLoRA · r=32, alpha=64 · `LOAD_IN_4BIT=True` · via [Unsloth](https://github.com/unslothai/unsloth) |
 | Dataset | 4,655 examples · dataset_v23 · stdlib v3.0.0 |
 | Compile verification | `aiken check` in isolated sandbox on all correction, fuzz, and test examples |
-| Epochs | ~3 (EarlyStopping, patience=3, `greater_is_better=False`) |
+| Epochs | 7 max · EarlyStopping patience=3 · eval every 50 steps |
 | Eval steps | Synced with save steps |
-| Hardware | NVIDIA A100 · Google Colab |
+| Hardware | NVIDIA RTX PRO 6000 Blackwell · 102 GB VRAM · Google Colab |
+| Batch size | 32 per device · grad accum 2 · effective batch 64 |
 | Export | GGUF Q4_K_M · ~2.5 GB |
 
 ---
