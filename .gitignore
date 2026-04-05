@@ -1,6 +1,20 @@
-.venv/
+# WSL Windows mountpoint
+/C:/
+
+# Dataset backups temporales
+*.pre_*.jsonl
+*.pre_v*backup
+*.ref_backup
+
+# Python
 __pycache__/
 *.pyc
+.venv/
+*.egg-info/
+
+# Editor
+.DS_Store
+*.swp
+
 eval_results/
 .env
-*.egg-info/
