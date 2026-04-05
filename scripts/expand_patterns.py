@@ -178,29 +178,29 @@ def strip_tests(code: str) -> str:
     result = []
     depth = 0
     in_test = False
+    seen_open_brace = False  # don't exit in_test until we've seen at least one '{'
 
     i = 0
     while i < len(lines):
         line = lines[i]
-        stripped = line.strip()
 
         if not in_test:
-            # Detect start of a test block: line matches 'test <name>(...) {' or
-            # 'test <name>(...) fail {' or 'test <name>() {' etc.
-            # A test block begins with 'test ' at the start of a non-indented line
-            # (or indented) and ends at the matching closing brace.
             if re.match(r'^\s*test\s+\w', line):
                 in_test = True
                 depth = 0
-                # Count braces on this line
+                seen_open_brace = False
                 depth += line.count('{') - line.count('}')
+                if '{' in line:
+                    seen_open_brace = True
                 i += 1
                 continue
             else:
                 result.append(line)
         else:
+            if '{' in line:
+                seen_open_brace = True
             depth += line.count('{') - line.count('}')
-            if depth <= 0:
+            if seen_open_brace and depth <= 0:
                 in_test = False
         i += 1
 
