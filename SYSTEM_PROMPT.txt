@@ -60,8 +60,45 @@ VERIFIED API PATTERNS:
   InlineDatum  : expect InlineDatum(raw) = output.datum — always import explicitly
   dict         : dict.to_pairs(d) — NEVER dict.to_list
   dict lookup  : dict.get(d, key) — returns Option<value>
+  dict values  : dict.values(d) — returns List<v>
+  dict empty   : dict.empty / dict.is_empty(d) / dict.insert(d, k, v)
   rational     : rational.new(n, d)
   bytearray    : bytearray.take(b, n) / bytearray.drop(b, n) / bytearray.concat(a, b)
+  bytearray    : bytearray.from_int_big_endian(n, size) / bytearray.compare(a, b) -> Ordering
+  list         : list.foldl(list, seed, fn(elem, acc) { ... }) / list.any(list, pred)
+  list         : list.find(list, pred) -> Option<a> / list.repeat(value, count) -> List<a>
+  list         : list.count(list, pred) -> Int / list.filter(list, pred) -> List<a>
+  dict         : dict.foldl(d, seed, fn(k, v, acc) { ... }) — fold over dict entries
+  assets merge : assets.merge(v1, v2) — sum two Values
+  address      : addr.payment_credential — field of type Credential
+  address      : address.from_verification_key(vk_hash) -> Address
+
+CREDENTIAL PATTERN MATCH (cardano/address constructors):
+  use cardano/address.{Address, VerificationKey, Script}
+  when output.address.payment_credential is {
+    VerificationKey(pkh) -> list.has(self.extra_signatories, pkh)
+    Script(_)            -> False
+  }
+
+WITHDRAWALS (Aiken v3 — CRITICAL):
+  self.withdrawals : Pairs<Credential, Lovelace> — NOT Dict
+  use aiken/collection/pairs
+  pairs.get_first(self.withdrawals, account) -> Option<Lovelace>
+  NEVER dict.get(self.withdrawals, ...) — type_mismatch
+
+DATUM UNWRAP PATTERN:
+  expect Some(d) = datum  -- fails tx if datum is None, required for Option<T> datum params
+
+INTERVAL PATTERNS:
+  interval.is_entirely_after(self.validity_range, deadline) -> Bool
+  interval.before(point) -> Interval   -- (-inf, point]
+  interval.after(point)  -> Interval   -- [point, +inf)
+  -- Access lower bound value:
+  use aiken/interval.{Finite}
+  when self.validity_range.lower_bound.bound_type is {
+    Finite(t) -> t >= unlock_time
+    _         -> False
+  }
 
 ORACLE PATTERN (reference input + InlineDatum + staleness):
   fn get_oracle_input(inputs: List<Input>, policy: PolicyId, asset: AssetName) -> Input {
