@@ -16,8 +16,8 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 >
 > | | |
 > |---|---|
-> | **Active model** | cardano-dev v8 (trained) · v9 next |
-> | **Active dataset** | dataset_v23.jsonl — **4,610 examples** · stdlib v3 · 97.7% compile-verified |
+> | **Active model** | cardano-dev v9 (training) · v8 released |
+> | **Active dataset** | dataset_v23.jsonl — **4,655 examples** · stdlib v3 · 97.7% compile-verified |
 > | **Pattern library** | 150 fuzz-verified `.ak` files in `data/patterns/` (01–25, variants a–f) · **+300 DeFi variants via expand_patterns.py** |
 > | **Benchmark** | **benchmark_v2.json — 257 prompts · 257/257 pass** · `aiken check` via PTY sandbox (stdlib v3.0.0) |
 > | **v8 heuristic** | **15/15 (100%)** — first model to achieve perfect heuristic score |
@@ -27,7 +27,7 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 >
 > v8 is the first model trained on the fully v3-migrated and compile-verified dataset. It achieved 15/15 (100%) heuristic and 10/15 (67%) compile — both new records. Remaining compile failures: `pub type` leak, `MintedValue` removed constructor, `GovernanceCommittee` wrong name, missing `use aiken/interval`.
 >
-> **Since v8:** Dataset expanded from 3,739 → 4,610 examples (+871). DeFi coverage (families 16–25) grew from ~60 → 410 examples. `PLAUSIBLE_NEEDS_CHECK` queue cleared to 0. `benchmark_v2.json` created with 257 compile-verified reference solutions (257/257 pass).
+> **Since v8:** Dataset expanded from 3,739 → 4,655 examples (+916). DeFi coverage (families 16–25) grew from ~60 → 410 examples. `PLAUSIBLE_NEEDS_CHECK` queue cleared to 0. `benchmark_v2.json` created with 257 compile-verified reference solutions (257/257 pass). v9 training on NVIDIA RTX PRO 6000 Blackwell (102 GB VRAM) — batch 32, grad accum 2.
 
 ---
 
@@ -199,6 +199,24 @@ tx.validity_range
 use cardano.transaction.{Transaction}  // dot-style imports
 interval.is_after(deadline, range)     // wrong function name
 ```
+
+### Stdlib API pitfalls — wrong signatures Claude generates confidently
+
+Found while building `with_tests_examples` via `aiken check`. These pass any heuristic check and fail immediately at compile time.
+
+| API | What Claude generates | What actually works |
+|-----|----------------------|---------------------|
+| `assets.flatten_with` | 3-arg lambda | use `assets.flatten` + `list.filter` instead |
+| `dict.insert` | `dict.insert(d, k, v, bytearray.compare)` | Only 3 args: `dict.insert(d, k, v)` — no compare fn |
+| `list.span` | `list.span(xs, predicate)` | Takes index `n: Int`, not a predicate |
+| `list.reduce` | `list.reduce(xs, fn(a, b) -> Option<c>)` | `list.reduce(xs, zero, fn(b, a) -> b)` |
+| `math.sqrt` | Returns `Int` | Returns `Option<Int>` — handle `None` |
+| `bytearray.and_bytes` | 2 args | 3 args: `(left, right, pad_end: Bool)` |
+| `Interval` | `Interval<Int>` | Not generic — just `Interval`, no type parameter |
+| `Rational` | Used without explicit import | Requires `use aiken/math/rational.{Rational}` |
+| `dict.union_with` | Annotated as `UnionStrategy` | Use `strategy.sum()` directly |
+
+> **Root cause:** Claude extrapolates from Haskell/Elm. Fix: run `aiken check`, read the error, verify in `data/raw/aiken_stdlib.json`.
 
 ---
 
@@ -856,7 +874,7 @@ greater_is_better      = False        # CRITICAL — see lesson below
 
 ---
 
-### Critical lessons learned
+### Lecciones aprendidas — fine-tuning con datos de dominio estrecho
 
 > **`greater_is_better=False` is non-negotiable when tracking val loss.**
 > Without it, HuggingFace Trainer treats higher loss as better and loads the **worst** checkpoint instead of the best. This caused v5's training run to export a degraded model despite having a good val loss curve. Confirmed fix in v6: best checkpoint was step 200 (val_loss 0.3271), final step was ~490 — loading the wrong one would have exported an overfit model.
@@ -873,7 +891,12 @@ greater_is_better      = False        # CRITICAL — see lesson below
 
 ### System prompt
 
-The system prompt injected at training time (and required at inference time):
+> **Required at inference time.** The model was trained with this prompt in every example. Without it, outputs drop from ~93% to ~20% heuristic — not a model failure, an inference failure. Copy it exactly into LM Studio or any API client.
+
+The authoritative copy is [`SYSTEM_PROMPT.txt`](./SYSTEM_PROMPT.txt). Expanded below for quick reference:
+
+<details>
+<summary>Show full system prompt</summary>
 
 ```
 You are an expert Aiken v3 smart contract engineer for the Cardano blockchain.
@@ -897,6 +920,8 @@ VERIFIED API PATTERNS:
   Signatures : list.has(self.extra_signatories, key) — NEVER self.signatures
   Time       : self.validity_range — NEVER self.time
 ```
+
+</details>
 
 ---
 
@@ -1321,7 +1346,30 @@ This section documents every bug and lesson learned during the project. It exist
 
 ---
 
-### Problems encountered — dataset generation
+### Problems encountered
+
+13 bugs encontrados y resueltos durante el desarrollo del dataset y el benchmark. Tabla resumen:
+
+| # | Área | Síntoma | Fix |
+|---|------|---------|-----|
+| D1 | Dataset | Modelo generaba handler con `fn` keyword incorrecto | Corrección de 30 ejemplos targetted en el dataset |
+| D2 | Dataset | System prompt mostraba firmas sin sintaxis completa | Agregadas estructuras completas `validator { ... }` al prompt |
+| D3 | Dataset | Generación sintética sin grounding en stdlib real | Inyectar firmas reales de `aiken_stdlib.json` en cada prompt |
+| D4 | Dataset | Campo `review_status` faltante en ejemplos nuevos | Script de migración para backfill del campo |
+| D5 | Dataset | Detección de handlers demasiado estricta → falsos "incompletos" | Relajar regex de detección |
+| D6 | Dataset | `stdout` buffering oculta progreso en scripts con `tee` | Agregar `PYTHONUNBUFFERED=1` y `-u` flag |
+| B1 | Benchmark | Lógica invertida en `has_dot_imports` / `has_markdown_fence` | Invertir la condición de pass/fail |
+| B2 | Benchmark | `no_markdown_fence` penalizaba formato, no conocimiento Aiken | Separar checks de formato de checks de corrección |
+| B3 | Benchmark | `wrapped_in_markdown` dentro del bloque `all()` — siempre fallaba | Mover fuera del bloque de checks obligatorios |
+| B4 | Benchmark | Dataset label incorrecto para v3 — modelos mal identificados | Corregir labels en tabla de resultados |
+| B5 | Benchmark | WSL no alcanza LM Studio en `localhost` | Usar gateway IP del host Windows (`ip route show default`) |
+| B6 | Benchmark | System prompt en benchmark ≠ system prompt de entrenamiento | Sincronizar `SYSTEM_PROMPT` entre `colab_finetune.ipynb` y `benchmark.py` |
+| B7 | Benchmark | GGUF exportado en Colab no descargable por browser | Guardar en Drive primero, luego descargar desde Drive |
+
+> **El bug más costoso: B6.** Causó que v2–v5 aparecieran con 7–20% cuando el score real era 67–93%. Los modelos nunca estuvieron rotos — el benchmark sí.
+
+<details>
+<summary>Ver detalle completo de cada problema</summary>
 
 #### Problem 1 — Handler signature learned incorrectly
 
@@ -1583,6 +1631,8 @@ These were found while building `with_tests_examples` via `aiken check` — patt
 
 **Lesson:** Pattern-matching checks (the v14-era approach) cannot replace compilation. A function call with the right name but wrong arity passes any heuristic and fails immediately at `aiken check`. This is why `with_tests_examples` is fully compile-gated — no example is added without a passing `aiken check` run.
 
+</details>
+
 ---
 
 ## Part IX — Project Structure
@@ -1716,4 +1766,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*cardano-dev v8 · dataset v23 · **4,610 examples** · 15/15 heuristic · 10/15 compile · stdlib v3 · 150 fuzz-verified patterns · 300 DeFi variants · benchmark_v2 257/257 pass · v9 next*
+*cardano-dev v9 (training) · dataset v23 · **4,655 examples** · v8: 15/15 heuristic · 10/15 compile · stdlib v3 · 150 fuzz-verified patterns · 300 DeFi variants · benchmark_v2 257/257 pass*
