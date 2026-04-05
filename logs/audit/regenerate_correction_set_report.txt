@@ -1,0 +1,437 @@
+Loaded  : 3474 examples
+Source  : correction_set (150 examples)
+
+Running compile check to find failures...
+Failing : 103/150
+
+[0] Fix this Aiken v3 error: transaction.signatories called instead of sel
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[1] Fix this Aiken v3 error: using transaction.signatories(tx) for signatu
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[2] Fix this Aiken v3 error: transaction.signatories used in multi-sig val
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[3] Fix this Aiken v3 error: list.has_any does not exist
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[4] Fix this Aiken v3 error: list.has_any called with two lists
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[5] Fix this Aiken v3 error: list.has_any used to check signatories overla
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[6] Fix this Aiken v3 error: list.has_any replacing list.any with lambda
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[7] Fix this Aiken v3 error: list.has_any used in helper function
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[8] Fix this Aiken v3 error: output.value.lovelace field does not exist
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 2/3... ✅
+
+[9] Fix this Aiken v3 error: value.lovelace used instead of assets.lovelac
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 2/3... ✅
+
+[10] Fix this Aiken v3 error: output.value.lovelace in fee comparison
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 2/3... ✅
+
+[11] Fix this Aiken v3 error: value.lovelace accessed on multiple outputs
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ❌ still fails: 8;;https://aiken-lang.org/language-tour/primitive-types        Error aiken::check::type_mismatch (link)8;;
+  Attempt 2/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 3/3... ✅
+
+[12] Fix this Aiken v3 error: missing validator wrapper around spend and wi
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[13] Fix this Aiken v3 error: validator keyword missing, script uses module
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[14] Fix this Aiken v3 error: interval.is_after called with wrong argument 
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[15] Fix this Aiken v3 error: interval.is_after used instead of interval.is
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[16] Fix this Aiken v3 error: interval.is_after with tx.validity_range inst
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[17] Fix this Aiken v3 error: dot-style import for Transaction
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[18] Fix this Aiken v3 error: dot-style cardano.transaction import in a spe
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[19] Fix this Aiken v3 error: use cardano/governance/transaction does not e
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[20] Fix this Aiken v3 error: use cardano/governance/transaction alongside 
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[21] Fix this Aiken v3 error: tx.validity_range instead of self.validity_ra
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[22] Fix this Aiken v3 error: ctx.transaction.validity_range instead of sel
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[23] Fix this Aiken v3 error: tx.validity_range in a simple deadline check
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[24] Fix this Aiken v3 error: assets.quantity_of called with reversed polic
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[25] Fix this Aiken v3 error: assets.quantity_of called with only policy_id
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[26] Fix this Aiken v3 error: dot-style import and tx.validity_range used t
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[27] Fix this Aiken v3 error: governance module import with interval.is_aft
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[28] Fix this Aiken v3 error: assets.quantity_of missing asset_name combine
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[29] Fix this Aiken v3 error: all five anti-patterns combined in one valida
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[92] Write an Aiken v3 mint validator for a whitelist-gated NFT drop where 
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[96] Write an Aiken v3 spend validator for a smart contract upgrade that re
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[98] Write an Aiken v3 withdraw validator requiring 2-of-3 treasury manager
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[99] Write an Aiken v3 mint validator for a token migration that requires b
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[100] Write a spend validator that ensures the output sent back to the scrip
+  Error: Error aiken::check::unknown::record_field
+  Attempt 1/3... ❌ still fails: Error aiken::parser
+  Attempt 2/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 3/3... ✅
+
+[101] Write a mint policy that checks each minted token quantity does not ex
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ❌ still fails: Error aiken::parser
+  Attempt 2/3... ✅
+
+[102] Write a spend validator that gates access to a UTxO unless the transac
+  Error: Error aiken::check::unknown::record_field
+  Attempt 1/3... ✅
+
+[104] Write a mint policy that allows burning tokens (negative quantity) but
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[105] Write a spend validator that ensures the script input holds exactly 1 
+  Error: Error aiken::check::unknown::record_field
+  Attempt 1/3... ✅
+
+[106] Write a mint policy that mints exactly 1 NFT per transaction, identifi
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[107] Write a spend validator that checks two different token types are both
+  Error: Error aiken::check::unknown::record_field
+  Attempt 1/3... ✅
+
+[109] Write a mint policy that checks the quantity of two different asset na
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[110] Write a withdraw validator that ensures the staking reward withdrawal 
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[112] Write a mint policy that prevents minting more than 1000 of a fungible
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[113] Write a spend validator that ensures the redeemer's claimed lovelace a
+  Error: Error aiken::check::unknown::record_field
+  Attempt 1/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 2/3... ✅
+
+[115] Write a mint policy that mints a token only if the total lovelace acro
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 2/3... ✅
+
+[117] Write a mint policy that allows minting only if a specific NFT (policy
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[119] Write a spend validator that confirms a staking NFT (membership token)
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[120] Write a mint policy that enforces a 50/50 mint ratio between two asset
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[121] Write a spend validator with a datum-encoded minimum ADA that validate
+  Error: Error aiken::check::unknown::record_field
+  Attempt 1/3... ✅
+
+[122] Write a spend validator that checks a multi-asset input holds at least
+  Error: Error aiken::check::unknown::record_field
+  Attempt 1/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 2/3... ✅
+
+[123] Write a mint policy that allows minting a reward token only when a spe
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[124] Write a spend validator that counts how many outputs carry an NFT from
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[125] Write an Aiken v3 spend validator that allows spending only after a de
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[126] Write an Aiken v3 spend validator that allows spending only before an 
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[127] Write an Aiken v3 mint validator that only allows minting within a spe
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[128] Write an Aiken v3 spend validator for a vesting contract that releases
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[129] Write an Aiken v3 withdraw validator that only permits withdrawal afte
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[130] Write an Aiken v3 mint validator that forbids minting after a sale end
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[131] Write an Aiken v3 spend validator for an escrow that releases only aft
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[133] Write an Aiken v3 spend validator using a wrong import style (dot inst
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[134] Write an Aiken v3 mint validator for an event-gated NFT drop that can 
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[135] Write an Aiken v3 withdraw validator that only allows reward withdrawa
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[137] Write an Aiken v3 spend validator for a DAO treasury that can only be 
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[138] Write an Aiken v3 spend validator for a time-locked savings contract t
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[140] Write an Aiken v3 spend validator that enforces a cooldown period by e
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[141] Write an Aiken v3 mint validator for a whitelist presale that only all
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[142] Write an Aiken v3 spend validator for an insurance payout that release
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[143] Write an Aiken v3 withdraw validator for a staking pool that enforces 
+  Error: Error aiken::check::unknown::module_field
+  Attempt 1/3... ✅
+
+[144] Write an Aiken v3 spend validator for a futures contract that settles 
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[145] Write an Aiken v3 spend validator for a time-released grant that check
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[146] Write an Aiken v3 spend validator for a competition prize that can onl
+  Error: Error aiken::check::unknown::module
+  Attempt 1/3... ✅
+
+[148] Write an Aiken v3 mint validator that uses list.any to check at least 
+  Error: 8;;https://aiken-lang.org/language-tour/custom-types#type-aliases        Error aiken::check::cycle (link)8;;
+  Attempt 1/3... ✅
+
+[153] Write an Aiken v3 spend validator that reads a price datum from a refe
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[155] Write an Aiken v3 withdraw validator that uses list.all to confirm eve
+  Error: 8;;https://aiken-lang.org/language-tour/custom-types#type-aliases        Error aiken::check::cycle (link)8;;
+  Attempt 1/3... ✅
+
+[156] Write an Aiken v3 validator that uses list.count to count how many out
+  Error: Error aiken::check::unknown::module_value
+  Attempt 1/3... ✅
+
+[157] Write an Aiken v3 mint validator that reads a config datum from a refe
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[158] Write an Aiken v3 validator that uses list.filter followed by list.len
+  Error: Error aiken::check::unknown::module_value
+  Attempt 1/3... ✅
+
+[162] Write an Aiken v3 validator that reads a governance threshold from a r
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[164] Write an Aiken v3 withdraw validator that reads a fee rate from a refe
+  Error: Error aiken::parser
+  Attempt 1/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 2/3... ✅
+
+[168] Write an Aiken v3 mint validator that reads an allowlist from a refere
+  Error: Error aiken::parser
+  Attempt 1/3... ❌ still fails: Error aiken::check::unknown::type
+  Attempt 2/3... ✅
+
+[169] What is the correct import for the assets module in Aiken v3?
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[170] What is the correct import for the transaction module in Aiken v3?
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[171] What is the correct import for the interval module in Aiken v3?
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[172] What is the correct import for the list module in Aiken v3?
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[173] What is the correct import for VerificationKeyHash in Aiken v3?
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[174] What is the correct way to import both the assets and transaction modu
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[175] What is the correct import when you need both VerificationKeyHash and 
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[176] What is the correct import path for the list module, and why is 'aiken
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[177] What is the correct way to alias the transaction module in Aiken v3?
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[178] What is the correct import when you need PolicyId from the transaction
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[179] Fix this incorrect import: use cardano.assets
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[180] Fix this incorrect import: use cardano.transaction.{Transaction}
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[181] Fix this incorrect import: use aiken.interval
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[182] Fix this incorrect import: use aiken/list
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[183] Fix this incorrect import: use cardano/assets/{Assets}
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[184] Fix this incorrect import: use cardano/governance/transaction
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[185] Fix this incorrect import: use aiken.crypto.{VerificationKeyHash}
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[186] Fix this incorrect import: use cardano.transaction as tx
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[187] Fix this incorrect import: use aiken/collection.list
+  Error: Error aiken::parser
+  Attempt 1/3... ✅
+
+[190] Write a short Aiken v3 validator that checks an NFT is present in an o
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+[193] Write a short Aiken v3 validator that checks the lovelace value in out
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ❌ still fails: Error aiken::check::unknown::module_value
+  Attempt 2/3... ✅
+
+[195] Write a short Aiken v3 validator combining assets and list modules, us
+  Error: Error aiken::check::unknown::type
+  Attempt 1/3... ✅
+
+==================================================
+Fixed        : 103/103
+Still failing: 0/103
+Written      : /home/rodrigo/entrenamiento/data/processed/dataset_v22.jsonl
+Log          : /home/rodrigo/entrenamiento/logs/regenerate_correction_set_report.md

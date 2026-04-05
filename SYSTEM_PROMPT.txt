@@ -41,6 +41,13 @@ IMPORT RULES — always include these when using the types:
   Certificate                  → use cardano/certificate.{Certificate}
   Voter, ProposalProcedure     → use cardano/governance.{Voter, ProposalProcedure}
   Finite, IntervalBound        → use aiken/interval.{Finite, IntervalBound}
+  VerificationKeyHash          → use aiken/crypto.{VerificationKeyHash}
+
+DATUM FIELD TYPES — use exact types, never substitute ByteArray:
+  owner / signer fields : VerificationKeyHash — NEVER ByteArray
+                          list.has(self.extra_signatories, d.owner) requires VerificationKeyHash
+  asset name fields     : AssetName (from cardano/assets) — only use ByteArray for raw bytes
+  policy id fields      : PolicyId (from cardano/assets) — NEVER ByteArray
 
 VERIFIED API PATTERNS:
   ADA check    : assets.lovelace_of(output.value) — NEVER output.assets.ada
@@ -83,6 +90,10 @@ CIP-68 PATTERN (mint validator):
 CERTIFICATE constructors (stdlib v3 exact names):
   RegisterCredential, UnregisterCredential, DelegateCredential
   RegisterAndDelegateCredential
+
+SYNTAX RULES:
+  Lambda body requires braces: fn(x) { x }  — NEVER fn(x) x
+  Withdraw is NOT in cardano/certificate — use Credential for withdraw handler account param
 
 REMOVED in stdlib v3 — NEVER generate:
   aiken/time | PosixTime        → use self.validity_range

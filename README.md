@@ -17,7 +17,8 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 > | | |
 > |---|---|
 > | **Active model** | cardano-dev v8 (trained) · v9 next |
-> | **Active dataset** | dataset_v22.jsonl — 3,748 examples · stdlib v3 · compile-verified |
+> | **Active dataset** | dataset_v23.jsonl — 3,739 examples · stdlib v3 · compile-verified |
+> | **Pattern library** | 150 fuzz-verified `.ak` files in `data/patterns/` (01–25, variants a–f) |
 > | **Benchmark** | 15 heuristic checks + **real `aiken check`** via PTY sandbox (stdlib v3.0.0) |
 > | **v8 heuristic** | **15/15 (100%)** — first model to achieve perfect heuristic score |
 > | **v8 compile** | **10/15 (67%)** · v7 was 9/15 (60%) |
@@ -42,7 +43,7 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
   - [Path A — Use existing dataset](#path-a--use-existing-dataset-recommended)
   - [Path B — Rebuild from scratch](#path-b--rebuild-dataset-from-scratch)
 - [Part IV — The Dataset](#part-iv--the-dataset)
-  - [Current state (v22)](#current-state-v22--active)
+  - [Current state (v23)](#current-state-v23--active)
   - [Sources](#sources)
   - [Schema](#schema)
   - [Pipeline overview](#pipeline-overview)
@@ -214,11 +215,11 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 ### Path A — Use existing dataset *(recommended)*
 
-The active dataset (`dataset_v22.jsonl`) is already in the repo. Skip straight to fine-tuning.
+The active dataset (`dataset_v23.jsonl`) is already in the repo. Skip straight to fine-tuning.
 
 **Step 1 — Fine-tune** *(Google Colab)*
 
-1. Upload `data/processed/dataset_v22.jsonl` to Colab
+1. Upload `data/processed/dataset_v23.jsonl` to Colab
 2. Run `colab_finetune.ipynb`
 3. Download GGUF from Google Drive → load in LM Studio
 
@@ -283,11 +284,11 @@ Then apply the cleaning pipeline (v15→v22) — see [Cleaning pipeline](#cleani
 
 ## Part IV — The Dataset
 
-### Current state (v22 — active)
+### Current state (v23 — active)
 
 | Metric | Value |
 |--------|-------|
-| Total examples | **3,748** |
+| Total examples | **3,739** |
 | Languages | EN ~60% / ES ~40% |
 | Sources | 15 + misc combined sources |
 | `fn` prefix errors | **0** (was 21.5% in v14) |
@@ -324,9 +325,9 @@ Full version history in [Dataset version history](#dataset-version-history).
 | `cip068_examples` | 32 | CIP-68 reference NFT + user token pair validation | VERIFIED |
 | `correction_set_v3` | 30 | v8 hallucination corrections (5 patterns). **100% compile-verified.** | CORRECTION |
 | *(misc combined)* | 231 | `aiken_docs.json + aiken_stdlib.json` (185), `aiken_stdlib.json` (22), `aiken_docs.json` (22), `aiken_docs.json + aiken_design_patterns.json` (2) | VERIFIED |
-| **Total** | **3,748** | | |
+| **Total** | **3,739** | | |
 
-**Status distribution:** VERIFIED_V3_ALIGNED 94.3% / VERIFIED_V3 2.0% / CORRECTION 2.9% / PLAUSIBLE_NEEDS_CHECK 0.8%
+**Status distribution:** VERIFIED_V3_ALIGNED ~94% / VERIFIED_V3 ~2% / CORRECTION ~3% / PLAUSIBLE_NEEDS_CHECK ~1%
 
 > **Note on two Qwen models:** The fine-tuned model (`cardano-dev`) is based on **Qwen3.5-4B** (4B params, base for training). The benchmark comparison baseline is **qwen2.5-coder-7b** (7B params, separate general-purpose coder model). These are different models used for different purposes.
 
@@ -358,7 +359,7 @@ Each example is a JSON line:
 
 ### How the dataset was built
 
-> **Note:** This section describes the initial pipeline that produced **v14 as the starting point**. The active dataset (v22, 3,748 examples) was built iteratively on top of this foundation through 8 additional cleaning and generation cycles — see [Dataset version history](#dataset-version-history) for the full evolution.
+> **Note:** This section describes the initial pipeline that produced **v14 as the starting point**. The active dataset (v23, 3,739 examples) was built iteratively on top of this foundation through additional cleaning and generation cycles — see [Dataset version history](#dataset-version-history) for the full evolution.
 
 #### Phase 1 — Scraping raw sources
 
@@ -452,7 +453,7 @@ dataset_v14_train.jsonl  3,737 examples
    generate_governance_examples · dedup · review_plausible
         │
         ▼
-dataset_v22.jsonl  3,748 examples  ← ACTIVE TRAINING SET
+dataset_v22.jsonl  3,748 examples
         │
         ▼
 [scripts/audit_dataset_compile.py + scripts/regenerate_failing.py]
@@ -483,6 +484,32 @@ dataset_v22.jsonl  3,748 examples  ← ACTIVE TRAINING SET
    15 stdlib topics · deduplication by instruction prefix
         │
         ▼
+[scripts/migrate_dataset_to_v3.py + dedup + correction fixes]
+   dedup + compile verification + import fixes → v23
+        │
+        ▼
+dataset_v23.jsonl  3,739 examples  ← ACTIVE TRAINING SET
+        │
+        ▼
+[data/patterns/ — 150 fuzz-verified .ak files]
+   25 categories × 6 variants (a–f) · property-based fuzz tests
+   aiken/fuzz · aiken check --max-success=200 · zero dead code · zero warnings
+        │
+        ▼
+[scripts/test_patterns.py]  sandbox harness (eval/aiken_sandbox/)
+   retry logic · detailed logs → logs/patterns_*.json
+        │
+        ▼
+[scripts/patterns_to_dataset.py]  compile-gated ingestion
+   only PASS → dataset record · extracts docstring instruction
+   topic from numeric prefix · review_status=VERIFIED_FUZZ_PASS
+        │
+        ▼
+data/processed/components/patterns_verified.jsonl  ← v24 input
+        │
+        ▼
+dataset_v24.jsonl  ~3,889 examples  ← IN PROGRESS
+
 [Colab QLoRA — unsloth + Qwen3.5-4B]
         │
         ▼
@@ -563,7 +590,30 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | **v22 + promote_plausible** | **3,503** | **`promote_plausible.py`: 924 PLAUSIBLE → VERIFIED (compile check + banned-pattern check). 127 failures logged.** |
 | **v22 + fix_plausible** | **3,503** | **`fix_plausible_failures.py`: 97/99 failures repaired via Claude API (stdlib local context). 2 irreparable deleted. VERIFIED ~95%.** |
 | **v22 + oracle/cip068** | **3,582** | **`generate_oracle_examples.py`: +47 oracle patterns. `generate_cip068_examples.py`: +32 CIP-68 examples. Dedup pass: 3 exact removed → 3,579.** |
-| **v22 + with_tests** | **3,748** | **`generate_with_tests.py` + `add_tests_to_verified.py`: +169 examples with embedded `test` blocks across 15+ stdlib topics. Compile-verified via `aiken check`. Active dataset.** |
+| **v22 + with_tests** | **3,748** | **`generate_with_tests.py` + `add_tests_to_verified.py`: +169 examples with embedded `test` blocks across 15+ stdlib topics. Compile-verified via `aiken check`.** |
+| **v23** | **3,739** | **Dedup pass + compile verification + import fixes (`fix_import_keyword.py`). 9 broken examples removed. Active dataset.** |
+| **v24 (in progress)** | **~3,889** | **+150 fuzz-verified patterns via `patterns_to_dataset.py`. 25 categories × 6 variants. All pass `aiken check --max-success=200`. Zero dead code, zero warnings.** |
+
+### What changed: v22 → v23 → v24
+
+**v22 issues found during audit:**
+- `import` keyword instead of `use` in 42 examples (Aiken v3 uses `use x/y/z`)
+- `aiken/bytearray` imports instead of correct `aiken/primitive/bytearray`
+- Dead code in examples: unused private functions, unused parameters, no-op imports
+- 9 examples with broken/uncompilable patterns removed via dedup + compile pass
+
+**v23 (active):** Dedup + compile verification pass over v22. Result: 3,748 → 3,739 examples. All remaining examples compile against stdlib v3.0.0.
+
+**v24 (in progress):** 150 property-based fuzz test patterns across 25 categories, each with 6 variants (a–f). Quality guarantees enforced per file:
+- Correct stdlib v3 imports (`aiken/collection/list`, `aiken/primitive/bytearray`, etc.)
+- Zero dead code — all functions referenced in at least one test
+- Zero compiler warnings
+- 4+ property tests per file using `aiken/fuzz` or `cardano/fuzz`
+- Verified with `aiken check --max-success=200` before inclusion
+
+**Pipeline:** `scripts/test_patterns.py` (sandbox harness) → `scripts/patterns_to_dataset.py` (compile-gated ingestion). Only files with `returncode == 0` become dataset records.
+
+---
 
 #### Coverage gaps addressed (v18b + v19)
 
@@ -617,7 +667,7 @@ Key results: `fn` prefix (21.5% → 0%) was the root cause of v2–v4 failures. 
 
 ### Measured improvement (v20 → v22)
 
-> **Snapshot:** The v22 column below shows the dataset at 3,503 examples — the state after stdlib migration and before oracle/cip068/with_tests additions. The active dataset is now 3,748. See [Dataset version history](#dataset-version-history) for the full progression.
+> **Snapshot:** The v22 column below shows the dataset at 3,503 examples — the state after stdlib migration and before oracle/cip068/with_tests additions. The active dataset is now v23 (3,739 examples). See [Dataset version history](#dataset-version-history) for the full progression.
 
 The v20→v22 cycle focused on stdlib v3 compatibility and compile verification rather than example count. `scripts/compare_datasets.py` output (v20=3,319 file no longer on disk; v21 is the earliest available backup). The script now includes v3-migration metrics that were not tracked in earlier cycles:
 
@@ -1373,64 +1423,61 @@ These were found while building `with_tests_examples` via `aiken check` — patt
 
 ## Part IX — Project Structure
 
+> See [`scripts/SCRIPTS.md`](scripts/SCRIPTS.md) for the full annotated script reference.
+
 ```
 cardumen-forge/
 │
 ├── README.md
+├── SYSTEM_PROMPT.txt                  # system prompt for inference
+├── HF_README.md                       # Hugging Face dataset card
 ├── colab_finetune.ipynb               # ← start here: QLoRA training notebook
 ├── eval_model.py                      # single-model eval — 15 prompts via LM Studio
 ├── benchmark.py                       # multi-model comparison — runs all versions sequentially
 │
-├── scripts/
+├── scripts/                           # see scripts/SCRIPTS.md for full reference
 │   ├── scrape/                        # Step 1 — collect raw sources
-│   │   ├── scrape_aiken_stdlib_github.py   # GitHub API → aiken_stdlib.json
-│   │   ├── scrape_aiken_docs.py            # Crawler → aiken_docs.json
-│   │   ├── scrape_hydra_docs.py            # Crawler → hydra_docs.json
-│   │   ├── scrape_github.py                # CIPs + design patterns
-│   │   └── scrape_aiken_stdlib.py          # Local stdlib scraper (legacy)
+│   │   ├── scrape_aiken_stdlib_github.py
+│   │   ├── scrape_aiken_docs.py
+│   │   ├── scrape_hydra_docs.py
+│   │   ├── scrape_github.py
+│   │   └── scrape_aiken_stdlib.py
 │   │
 │   ├── generate/                      # Step 2 — generate training examples
-│   │   ├── regenerate_from_raw.py          # Main grounded generation pipeline
-│   │   ├── generate_validators_v2.py       # 19-batch curated validator generator
-│   │   ├── generate_corrections_v2.py      # CORRECTION examples v2
-│   │   ├── generate_correction_set.py      # CORRECTION examples v1
-│   │   ├── generate_correction_set_v3.py   # CORRECTION examples v3 (v8 hallucination patterns)
-│   │   ├── generate_oracle_examples.py     # Oracle integration patterns (47 examples)
-│   │   ├── generate_cip068_examples.py     # CIP-68 reference NFT patterns (32 examples)
-│   │   ├── generate_with_tests.py          # Stdlib examples with embedded test blocks
-│   │   └── fix_incomplete_validators.py    # Regenerate incomplete outputs
+│   │   ├── regenerate_from_raw.py          # main grounded generation pipeline
+│   │   ├── generate_validators_v2.py
+│   │   ├── generate_corrections_v2.py
+│   │   ├── generate_correction_set_v3.py   # v8 hallucination corrections (active)
+│   │   ├── generate_oracle_examples.py
+│   │   ├── generate_cip068_examples.py
+│   │   ├── generate_with_tests.py
+│   │   └── fix_incomplete_validators.py
 │   │
 │   ├── audit/                         # Step 3 — quality checks
-│   │   ├── audit_v9.py                     # API coverage + contamination audit
-│   │   ├── audit_dot_imports.py            # Detect dot-style import contamination
-│   │   └── purge_dot_imports.py            # Remove contaminated examples
+│   │   ├── audit_v9.py
+│   │   ├── audit_dot_imports.py
+│   │   └── purge_dot_imports.py
 │   │
 │   ├── build/                         # Step 4 — assemble dataset
-│   │   ├── build_dataset_v14.py            # Curriculum-ordered merge (3,737 examples)
-│   │   └── build_holdout.py                # Stratified 90/10 train/eval split
+│   │   ├── build_dataset_v14.py
+│   │   └── build_holdout.py
 │   │
-│   ├── fix_fn_prefix.py                    # Step 5 — cleaning pipeline (v14 → v20)
-│   ├── build_v16.py
-│   ├── fix_types.py
-│   ├── fix_import_keyword.py               # import x.y.z → use x/y/z; delete off-topic examples
-│   ├── regenerate_truncated.py
-│   ├── generate_governance_examples.py
-│   ├── generate_reference_input_examples.py
-│   ├── dedup_dataset.py
-│   ├── compare_datasets.py
-│   ├── review_plausible.py
-│   ├── promote_plausible.py                # PLAUSIBLE → VERIFIED via compile + banned-pattern check
-│   ├── fix_plausible_failures.py           # Claude API repair of compile failures
-│   ├── audit_structural_dupes.py           # Detect structurally similar outputs (normalized MD5)
-│   ├── audit_dataset_quality.py
-│   ├── add_tests_to_verified.py            # Add test blocks to existing VERIFIED examples
-│   ├── migrate_dataset_to_v3.py            # Step 6 — stdlib v3 migration (v21 → v22)
-│   ├── strip_markdown_outputs.py           # Extract code from markdown-fenced outputs
-│   ├── audit_dataset_compile.py            # Run aiken check on every dataset example
-│   └── regenerate_failing.py               # Fix compile failures via Claude API
+│   ├── [cleaning pipeline]            # Step 5 — fix_fn_prefix · build_v16 · fix_types ·
+│   │                                  #   fix_import_keyword · migrate_dataset_to_v3 ·
+│   │                                  #   dedup_dataset · promote_plausible · fix_plausible_failures
+│   │
+│   ├── [fuzz pattern pipeline]        # Step 6 (v24) — test_patterns · patterns_to_dataset
+│   │
+│   └── oneoff/                        # single-use investigation scripts (not part of pipeline)
+│       └── analyze_audit* · check_* · show_* · inspect_* · fuzz_stats
 │
 ├── data/
-│   ├── raw/                           # Scraped source files (not synthetic)
+│   ├── patterns/                      # 150 fuzz-verified .ak files (01–25, variants a–f)
+│   │   ├── 01_dex_swap_double_satisfaction.ak  # base patterns (25 categories)
+│   │   ├── 01b_fixed_price_swap.ak             # variant b–f per category
+│   │   └── ...                                 # all pass aiken check --max-success=200
+│   │
+│   ├── raw/                           # scraped source files (not synthetic)
 │   │   ├── aiken_stdlib.json               # 458 functions with real signatures
 │   │   ├── aiken_docs.json                 # 28 documentation pages
 │   │   ├── aiken_design_patterns.json      # 22 production pattern files
@@ -1439,9 +1486,10 @@ cardumen-forge/
 │   │   └── hydra_plutus.json               # Hydra + Plutus integration reference
 │   │
 │   └── processed/
-│       ├── dataset_v22.jsonl               # 3,748 examples — ACTIVE TRAINING SET (compile-verified)
+│       ├── dataset_v23.jsonl               # 3,739 examples — ACTIVE TRAINING SET
+│       ├── dataset_v22.jsonl               # 3,748 examples — previous version
 │       ├── dataset_v14_eval.jsonl          # 374 examples — HOLDOUT (do not train on)
-│       ├── components/                     # Building blocks per source
+│       ├── components/                     # intermediate outputs per source
 │       │   ├── correction_set.jsonl
 │       │   ├── correction_set_v3.jsonl
 │       │   ├── corrections_v2.jsonl
@@ -1452,10 +1500,23 @@ cardumen-forge/
 │       │   ├── v3_compat_examples.jsonl
 │       │   ├── with_tests_examples.jsonl
 │       │   ├── validators_v3.jsonl
-│       │   └── validators_fixed.jsonl
-│       └── archive/                        # Superseded dataset versions (v13–v21)
+│       │   ├── validators_fixed.jsonl
+│       │   └── patterns_verified.jsonl     # output of patterns_to_dataset.py (v24 input)
+│       └── archive/                        # superseded versions (v2–v22)
+│           └── backups/                    # pre-operation snapshots
 │
-├── logs/                              # generation and audit run logs
+├── eval/
+│   └── aiken_sandbox/                 # compile-check sandbox (stdlib v3.0.0, Plutus v3)
+│       └── validators/output.ak       # ← sandbox writes here per test run
+│
+├── eval_results/                      # benchmark run JSONs
+│   ├── summary.md                     # ← model evolution table (start here)
+│   └── runs/                          # one JSON per benchmark run
+│
+├── logs/
+│   ├── audit/                         # compile audits, repair reports, plausible logs
+│   └── patterns/                      # test_patterns.py run logs
+│
 └── archive/scripts/                   # superseded scripts (v13 pipeline, old audits)
 ```
 
@@ -1491,4 +1552,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*cardano-dev v8 · dataset v22 · 3,748 examples · 15/15 heuristic · 10/15 compile · stdlib v3*
+*cardano-dev v8 · dataset v23 · 3,739 examples · 15/15 heuristic · 10/15 compile · stdlib v3 · 150 fuzz-verified patterns (v24 in progress)*

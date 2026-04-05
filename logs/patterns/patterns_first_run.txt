@@ -1,0 +1,27 @@
+═════════════════════════════════════════════════════════════════
+  PATTERN TEST HARNESS — 15 patterns
+  max-success=200  retries=2
+═════════════════════════════════════════════════════════════════
+[ 1/15] ⏳  01_dex_swap_double_satisfaction              [ 1/15] ✅  01_dex_swap_double_satisfaction                 3.5s  unit=2 prop=2
+[ 2/15] ⏳  02_nft_mint_utxo_name                        [ 2/15] ✅  02_nft_mint_utxo_name                           4.5s  unit=4 prop=4
+[ 3/15] ⏳  03_burn_only                                 [ 3/15] ✅  03_burn_only                                    5.2s  unit=4 prop=4
+[ 4/15] ⏳  04_oracle_reference_input                    [ 4/15] ✅  04_oracle_reference_input                       3.2s  unit=1 prop=1
+[ 5/15] ⏳  05_cip68_mint_pair                           [ 5/15] ✅  05_cip68_mint_pair                              3.5s  unit=6 prop=6
+[ 6/15] ⏳  06_multisig_m_of_n                           [ 6/15] ✅  06_multisig_m_of_n                              9.6s  unit=5 prop=5
+[ 7/15] ⏳  07_cdp_open                                  [ 7/15] ✅  07_cdp_open                                     3.9s  unit=4 prop=4
+[ 8/15] ⏳  08_cdp_liquidation                           [ 8/15] ✅  08_cdp_liquidation                              4.9s  unit=4 prop=4
+[ 9/15] ⏳  09_loan_deadline                             [ 9/15] ✅  09_loan_deadline                                4.3s  unit=3 prop=3
+[10/15] ⏳  10_nft_collateral_loan                       [10/15] ✅  10_nft_collateral_loan                          5.3s  unit=3 prop=3
+[11/15] ⏳  11_cip68_credential_mint                     [11/15] ✅  11_cip68_credential_mint                        3.8s  unit=7 prop=7
+[12/15] ⏳  12_cip68_credential_update                   [12/15] ✅  12_cip68_credential_update                      4.7s  unit=4 prop=4
+[13/15] ⏳  13_amm_constant_product                      [13/15] ✅  13_amm_constant_product                         6.4s  unit=4 prop=4
+[14/15] ⏳  14_merkle_whitelist                          [14/15] ✅  14_merkle_whitelist                             6.2s  unit=4 prop=4
+[15/15] ⏳  15_beacon_state_machine                      [15/15] ✅  15_beacon_state_machine                         3.2s  unit=6 prop=6
+
+═════════════════════════════════════════════════════════════════
+  Passed : 15/15
+  Failed : 0/15
+  Tests  : 61 unit + 61 property (passing only)
+═════════════════════════════════════════════════════════════════
+
+Log → /home/rodrigo/entrenamiento/logs/patterns_20260404T224701Z.json

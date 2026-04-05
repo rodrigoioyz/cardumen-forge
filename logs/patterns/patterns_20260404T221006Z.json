@@ -1,0 +1,428 @@
+{
+  "run_at": "20260404T221006Z",
+  "patterns_dir": "/home/rodrigo/entrenamiento/data/patterns",
+  "max_success": 200,
+  "retries": 2,
+  "passed": 6,
+  "failed": 9,
+  "results": [
+    {
+      "name": "01_dex_swap_double_satisfaction",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/01_dex_swap_double_satisfaction.ak",
+      "ok": false,
+      "unit_tests": 2,
+      "prop_tests": 2,
+      "attempts": 3,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 5.28,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": false,
+          "elapsed": 3.61,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 3,
+          "ok": false,
+          "elapsed": 3.42,
+          "timeout": false,
+          "output": ""
+        }
+      ],
+      "final_output": "",
+      "total_elapsed": 12.31
+    },
+    {
+      "name": "02_nft_mint_utxo_name",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/02_nft_mint_utxo_name.ak",
+      "ok": false,
+      "unit_tests": 4,
+      "prop_tests": 4,
+      "attempts": 3,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 3.38,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": false,
+          "elapsed": 3.43,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 3,
+          "ok": false,
+          "elapsed": 3.28,
+          "timeout": false,
+          "output": ""
+        }
+      ],
+      "final_output": "",
+      "total_elapsed": 10.09
+    },
+    {
+      "name": "03_burn_only",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/03_burn_only.ak",
+      "ok": false,
+      "unit_tests": 4,
+      "prop_tests": 4,
+      "attempts": 3,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 3.52,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": false,
+          "elapsed": 3.96,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 3,
+          "ok": false,
+          "elapsed": 5.62,
+          "timeout": false,
+          "output": ""
+        }
+      ],
+      "final_output": "",
+      "total_elapsed": 13.1
+    },
+    {
+      "name": "04_oracle_reference_input",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/04_oracle_reference_input.ak",
+      "ok": true,
+      "unit_tests": 1,
+      "prop_tests": 1,
+      "attempts": 1,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": true,
+          "elapsed": 3.53,
+          "timeout": false,
+          "output": "{\n  \"seed\": 3437123977,\n  \"summary\": {\n    \"total\": 1,\n    \"passed\": 1,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 0,\n      \"property\": 1\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 1,\n        \"passed\": 1,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 0,\n          \"property\": 1\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_get_oracle_price_empty_inputs_none\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ..."
+        }
+      ],
+      "final_output": "{\n  \"seed\": 3437123977,\n  \"summary\": {\n    \"total\": 1,\n    \"passed\": 1,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 0,\n      \"property\": 1\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 1,\n        \"passed\": 1,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 0,\n          \"property\": 1\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_get_oracle_price_empty_inputs_none\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ...",
+      "total_elapsed": 3.53
+    },
+    {
+      "name": "05_cip68_mint_pair",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/05_cip68_mint_pair.ak",
+      "ok": true,
+      "unit_tests": 6,
+      "prop_tests": 6,
+      "attempts": 1,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": true,
+          "elapsed": 3.91,
+          "timeout": false,
+          "output": "{\n  \"seed\": 1689270302,\n  \"summary\": {\n    \"total\": 6,\n    \"passed\": 6,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 4,\n      \"property\": 2\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 6,\n        \"passed\": 6,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 4,\n          \"property\": 2\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_has_cip68_label_correct\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        },\n        {\n          \"title\": \"prop_has_cip68_label_wrong_prefix\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1802,\n            \"cpu\": 424198\n          }\n        },\n        {\n          \"title\": \"prop_has_cip68_label_too_short\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_has_cip68_label_exact_length\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        },\n        {\n          \"title\": \"prop_pairs_balanced_empty\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 4432,\n            \"cpu\": 821094\n          }\n        },\n        {\n          \"title\": \"prop_base_name_roundtrip\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ..."
+        }
+      ],
+      "final_output": "{\n  \"seed\": 1689270302,\n  \"summary\": {\n    \"total\": 6,\n    \"passed\": 6,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 4,\n      \"property\": 2\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 6,\n        \"passed\": 6,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 4,\n          \"property\": 2\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_has_cip68_label_correct\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        },\n        {\n          \"title\": \"prop_has_cip68_label_wrong_prefix\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1802,\n            \"cpu\": 424198\n          }\n        },\n        {\n          \"title\": \"prop_has_cip68_label_too_short\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_has_cip68_label_exact_length\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        },\n        {\n          \"title\": \"prop_pairs_balanced_empty\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 4432,\n            \"cpu\": 821094\n          }\n        },\n        {\n          \"title\": \"prop_base_name_roundtrip\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ...",
+      "total_elapsed": 3.91
+    },
+    {
+      "name": "06_multisig_m_of_n",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/06_multisig_m_of_n.ak",
+      "ok": true,
+      "unit_tests": 5,
+      "prop_tests": 5,
+      "attempts": 2,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 3.62,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": true,
+          "elapsed": 3.33,
+          "timeout": false,
+          "output": "{\n  \"seed\": 218955664,\n  \"summary\": {\n    \"total\": 0,\n    \"passed\": 0,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 0,\n      \"property\": 0\n    }\n  },\n  \"modules\": []\n}\n   Collecting all tests scenarios across all modules"
+        }
+      ],
+      "final_output": "{\n  \"seed\": 218955664,\n  \"summary\": {\n    \"total\": 0,\n    \"passed\": 0,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 0,\n      \"property\": 0\n    }\n  },\n  \"modules\": []\n}\n   Collecting all tests scenarios across all modules",
+      "total_elapsed": 6.95
+    },
+    {
+      "name": "07_cdp_open",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/07_cdp_open.ak",
+      "ok": true,
+      "unit_tests": 4,
+      "prop_tests": 4,
+      "attempts": 1,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": true,
+          "elapsed": 4.19,
+          "timeout": false,
+          "output": "{\n  \"seed\": 3128200259,\n  \"summary\": {\n    \"total\": 4,\n    \"passed\": 4,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 1,\n      \"property\": 3\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 4,\n        \"passed\": 4,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 1,\n          \"property\": 3\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_overcollateralized_equal_ratio\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_overcollateralized_above_ratio\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_not_overcollateralized_below\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_overcollateralized_zero_debt\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ..."
+        }
+      ],
+      "final_output": "{\n  \"seed\": 3128200259,\n  \"summary\": {\n    \"total\": 4,\n    \"passed\": 4,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 1,\n      \"property\": 3\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 4,\n        \"passed\": 4,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 1,\n          \"property\": 3\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_overcollateralized_equal_ratio\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_overcollateralized_above_ratio\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_not_overcollateralized_below\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_overcollateralized_zero_debt\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ...",
+      "total_elapsed": 4.19
+    },
+    {
+      "name": "08_cdp_liquidation",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/08_cdp_liquidation.ak",
+      "ok": false,
+      "unit_tests": 4,
+      "prop_tests": 4,
+      "attempts": 3,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 3.4,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": false,
+          "elapsed": 3.68,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 3,
+          "ok": false,
+          "elapsed": 5.22,
+          "timeout": false,
+          "output": ""
+        }
+      ],
+      "final_output": "",
+      "total_elapsed": 12.3
+    },
+    {
+      "name": "09_loan_deadline",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/09_loan_deadline.ak",
+      "ok": false,
+      "unit_tests": 3,
+      "prop_tests": 3,
+      "attempts": 3,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 0.05,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": false,
+          "elapsed": 0.05,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 3,
+          "ok": false,
+          "elapsed": 0.05,
+          "timeout": false,
+          "output": ""
+        }
+      ],
+      "final_output": "",
+      "total_elapsed": 0.15000000000000002
+    },
+    {
+      "name": "10_nft_collateral_loan",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/10_nft_collateral_loan.ak",
+      "ok": false,
+      "unit_tests": 3,
+      "prop_tests": 3,
+      "attempts": 3,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 0.06,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": false,
+          "elapsed": 0.06,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 3,
+          "ok": false,
+          "elapsed": 0.06,
+          "timeout": false,
+          "output": ""
+        }
+      ],
+      "final_output": "",
+      "total_elapsed": 0.18
+    },
+    {
+      "name": "11_cip68_credential_mint",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/11_cip68_credential_mint.ak",
+      "ok": true,
+      "unit_tests": 7,
+      "prop_tests": 7,
+      "attempts": 1,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": true,
+          "elapsed": 3.67,
+          "timeout": false,
+          "output": "{\n  \"seed\": 1356008272,\n  \"summary\": {\n    \"total\": 7,\n    \"passed\": 7,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 5,\n      \"property\": 2\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 7,\n        \"passed\": 7,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 5,\n          \"property\": 2\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_has_label_222_correct\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        },\n        {\n          \"title\": \"prop_has_label_100_correct\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        },\n        {\n          \"title\": \"prop_has_label_short\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_strip_label_roundtrip\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_pairs_valid_empty\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 4432,\n            \"cpu\": 821094\n          }\n        },\n        {\n          \"title\": \"prop_pairs_valid_balanced\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 40181,\n            \"cpu\": 11471769\n          }\n        },\n        {\n          \"title\": \"prop_pairs_invalid_missing_ref\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 22625,\n            \"cpu\": 6730448\n          }\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ..."
+        }
+      ],
+      "final_output": "{\n  \"seed\": 1356008272,\n  \"summary\": {\n    \"total\": 7,\n    \"passed\": 7,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 5,\n      \"property\": 2\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 7,\n        \"passed\": 7,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 5,\n          \"property\": 2\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_has_label_222_correct\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        },\n        {\n          \"title\": \"prop_has_label_100_correct\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 1001,\n            \"cpu\": 220149\n          }\n        },\n        {\n          \"title\": \"prop_has_label_short\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_strip_label_roundtrip\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_pairs_valid_empty\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 4432,\n            \"cpu\": 821094\n          }\n        },\n        {\n          \"title\": \"prop_pairs_valid_balanced\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 40181,\n            \"cpu\": 11471769\n          }\n        },\n        {\n          \"title\": \"prop_pairs_invalid_missing_ref\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"execution_units\": {\n            \"mem\": 22625,\n            \"cpu\": 6730448\n          }\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ...",
+      "total_elapsed": 3.67
+    },
+    {
+      "name": "12_cip68_credential_update",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/12_cip68_credential_update.ak",
+      "ok": false,
+      "unit_tests": 4,
+      "prop_tests": 4,
+      "attempts": 3,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 3.32,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": false,
+          "elapsed": 3.65,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 3,
+          "ok": false,
+          "elapsed": 3.27,
+          "timeout": false,
+          "output": ""
+        }
+      ],
+      "final_output": "",
+      "total_elapsed": 10.24
+    },
+    {
+      "name": "13_amm_constant_product",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/13_amm_constant_product.ak",
+      "ok": false,
+      "unit_tests": 4,
+      "prop_tests": 4,
+      "attempts": 3,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 0.05,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": false,
+          "elapsed": 0.06,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 3,
+          "ok": false,
+          "elapsed": 0.05,
+          "timeout": false,
+          "output": ""
+        }
+      ],
+      "final_output": "",
+      "total_elapsed": 0.16
+    },
+    {
+      "name": "14_merkle_whitelist",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/14_merkle_whitelist.ak",
+      "ok": true,
+      "unit_tests": 4,
+      "prop_tests": 4,
+      "attempts": 1,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": true,
+          "elapsed": 6.63,
+          "timeout": false,
+          "output": "{\n  \"seed\": 1449523866,\n  \"summary\": {\n    \"total\": 4,\n    \"passed\": 4,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 0,\n      \"property\": 4\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 4,\n        \"passed\": 4,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 0,\n          \"property\": 4\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_verify_proof_empty_proof\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_verify_proof_single_sibling\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_hash_pair_symmetric\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_verify_proof_wrong_leaf_fails\",\n          \"status\": \"pass\",\n          \"on_failure\": \"succeed_eventually\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ..."
+        }
+      ],
+      "final_output": "{\n  \"seed\": 1449523866,\n  \"summary\": {\n    \"total\": 4,\n    \"passed\": 4,\n    \"failed\": 0,\n    \"kind\": {\n      \"unit\": 0,\n      \"property\": 4\n    }\n  },\n  \"modules\": [\n    {\n      \"name\": \"output\",\n      \"summary\": {\n        \"total\": 4,\n        \"passed\": 4,\n        \"failed\": 0,\n        \"kind\": {\n          \"unit\": 0,\n          \"property\": 4\n        }\n      },\n      \"tests\": [\n        {\n          \"title\": \"prop_verify_proof_empty_proof\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_verify_proof_single_sibling\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_hash_pair_symmetric\",\n          \"status\": \"pass\",\n          \"on_failure\": \"fail_immediately\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        },\n        {\n          \"title\": \"prop_verify_proof_wrong_leaf_fails\",\n          \"status\": \"pass\",\n          \"on_failure\": \"succeed_eventually\",\n          \"iterations\": 200,\n          \"counterexample\": null\n        }\n      ]\n    }\n  ]\n}\n   Collecting all tests scenarios across all modules\n      Testing ...",
+      "total_elapsed": 6.63
+    },
+    {
+      "name": "15_beacon_state_machine",
+      "file": "/home/rodrigo/entrenamiento/data/patterns/15_beacon_state_machine.ak",
+      "ok": false,
+      "unit_tests": 6,
+      "prop_tests": 6,
+      "attempts": 3,
+      "attempts_log": [
+        {
+          "attempt": 1,
+          "ok": false,
+          "elapsed": 0.06,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 2,
+          "ok": false,
+          "elapsed": 0.06,
+          "timeout": false,
+          "output": ""
+        },
+        {
+          "attempt": 3,
+          "ok": false,
+          "elapsed": 0.06,
+          "timeout": false,
+          "output": ""
+        }
+      ],
+      "final_output": "",
+      "total_elapsed": 0.18
+    }
+  ]
+}

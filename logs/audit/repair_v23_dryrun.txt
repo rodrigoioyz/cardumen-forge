@@ -1,0 +1,96 @@
+[DRY RUN] [DROP-UNFIXABLE] repair_dataset_v23.py
+Input : /home/rodrigo/entrenamiento/data/processed/dataset_v22.jsonl
+Output: /home/rodrigo/entrenamiento/data/processed/dataset_v23.jsonl
+
+  [600/3748] fixed_ok=7 fixed_fail=0
+  [3400/3748] fixed_ok=66 fixed_fail=6
+
+Resultados:
+  Total          : 3748
+  Sin cambios    : 3639
+  Reparados ✅   : 100
+  No reparables ❌: 9 (eliminados: 9)
+
+[DRY RUN] No se escribió ningún archivo.
+
+Primeros 20 problemas detectados:
+### [212] ✅ FIXED — correction_set_v3
+  owner: ByteArray → VerificationKeyHash
+  + import aiken/crypto.{VerificationKeyHash}
+
+### [378] ✅ FIXED — aiken_stdlib
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [380] ✅ FIXED — aiken_stdlib
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [411] ✅ FIXED — aiken_stdlib
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [589] ✅ FIXED — aiken_stdlib
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [591] ✅ FIXED — aiken_stdlib
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [599] ✅ FIXED — aiken_stdlib
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [732] ✅ FIXED — aiken_stdlib
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1216] ✅ FIXED — cips
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1269] ❌ UNFIXABLE — cips
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1334] ✅ FIXED — cips
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1358] ✅ FIXED — cips
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1503] ✅ FIXED — aiken_docs
+  owner: ByteArray → VerificationKeyHash
+  + import aiken/crypto.{VerificationKeyHash}
+
+### [1598] ✅ FIXED — aiken_v3_curated_v2
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1623] ✅ FIXED — aiken_v3_curated_v2
+  owner: ByteArray → VerificationKeyHash
+  + import aiken/crypto.{VerificationKeyHash}
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1624] ✅ FIXED — aiken_v3_curated_v2
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1625] ✅ FIXED — aiken_v3_curated_v2
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1626] ✅ FIXED — aiken_v3_curated_v2
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1627] ✅ FIXED — aiken_v3_curated_v2
+  owner: ByteArray → VerificationKeyHash
+  + import aiken/crypto.{VerificationKeyHash}
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1628] ✅ FIXED — aiken_v3_curated_v2
+  owner: ByteArray → VerificationKeyHash
+  + import aiken/crypto.{VerificationKeyHash}
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1629] ✅ FIXED — aiken_v3_curated_v2
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1630] ✅ FIXED — aiken_v3_curated_v2
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1631] ✅ FIXED — aiken_v3_curated_v2
+  owner: ByteArray → VerificationKeyHash
+  + import aiken/crypto.{VerificationKeyHash}
+  - Redeemer removido de cardano/transaction (redefinido localmente)
+
+### [1632] ✅ FIXED — aiken_v3_curated_v2

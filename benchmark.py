@@ -78,6 +78,11 @@ MODELS = [
         "lm_name":     "lmstudio-community/aiken_expert/cardano-dev 8.0  qwen3.5-4b.q4_k_m.gguf",
         "version":     "v8",
     },
+    {
+        "label":       "cardano-dev v9 (dataset v22, best ckpt)",
+        "lm_name":     "lmstudio-community/aiken_expert/cardano-dev 9.0 qwen3.5-4b.q4_k_m -v22-q4_k_m.gguf",
+        "version":     "v9",
+    },
 ]
 
 RESULTS_DIR = Path("eval_results")
