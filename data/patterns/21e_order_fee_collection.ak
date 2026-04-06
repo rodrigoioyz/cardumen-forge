@@ -69,7 +69,7 @@ test prop_seller_proceeds_non_negative(
   vals via fuzz.both(fuzz.int_between(1, 1000), fuzz.int_between(1, 9999)),
 ) {
   let (qty, fee_bps) = vals
-  seller_proceeds(qty, 100, fee_bps) >= 0
+  seller_proceeds(qty, 100, fee_bps) > 0
 }
 
 // ── Negative / fail tests ────────────────────────────────────────────────────

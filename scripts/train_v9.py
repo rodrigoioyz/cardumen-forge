@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-cardano-dev v9 — Qwen3.5-4B fine-tune on dataset_v22 (3,748 examples, stdlib v3)
+cardano-dev v9 — Qwen3.5-4B fine-tune on dataset_v23 (4,655 examples, stdlib v3)
 Run in Google Colab (GPU runtime). Single-file, no notebooks.
 """
 
@@ -41,18 +41,18 @@ print(f"bf16   : {torch.cuda.is_bf16_supported()}")
 files_found = glob.glob("*.jsonl")
 
 if files_found:
-    v22_candidates = [x for x in files_found if "dataset_v22" in x]
-    dataset_path = v22_candidates[0] if v22_candidates else files_found[0]
+    v23_candidates = [x for x in files_found if "dataset_v23" in x]
+    dataset_path = v23_candidates[0] if v23_candidates else files_found[0]
     print(f"Dataset encontrado: {dataset_path}")
 else:
     from google.colab import files as colab_files
-    print("Sube dataset_v22.jsonl (3,748 ejemplos, stdlib v3)")
+    print("Sube dataset_v23.jsonl (4,655 ejemplos, stdlib v3)")
     uploaded = colab_files.upload()
     dataset_path = list(uploaded.keys())[0]
 
 dataset = load_dataset("json", data_files=dataset_path, split="train")
 print(f"{len(dataset)} ejemplos cargados")
-assert len(dataset) >= 3748, f"Esperados >= 3748 (v22 activo), encontrados {len(dataset)}"
+assert len(dataset) >= 4655, f"Esperados >= 4655 (v23 activo), encontrados {len(dataset)}"
 
 # ============================================
 # 4) CONFIG DEL MODELO
@@ -181,7 +181,7 @@ print(f"Train: {len(train_ds)} | Eval: {len(eval_ds)}")
 # ============================================
 # 6) TRAINER
 # ============================================
-OUTPUT_DIR = "qwen35_4b_aiken_v22_v9"
+OUTPUT_DIR = "qwen35_4b_aiken_v23_v9"
 
 trainer = SFTTrainer(
     model=model,
@@ -233,8 +233,8 @@ print(f"Mejor val loss   : {trainer.state.best_metric:.6f}")
 # ============================================
 # 8) GUARDAR LORA + GGUF
 # ============================================
-LORA_DIR = "qwen35_4b_aiken_v22_v9_lora"
-GGUF_DIR = "qwen35_4b_aiken_v22_v9_gguf"
+LORA_DIR = "qwen35_4b_aiken_v23_v9_lora"
+GGUF_DIR = "qwen35_4b_aiken_v23_v9_gguf"
 
 model.save_pretrained(LORA_DIR)
 tokenizer.save_pretrained(LORA_DIR)
@@ -261,8 +261,8 @@ assert gguf_candidates, f"No se encontró Q4_K_M.gguf en {GGUF_DIR} — revisá 
 gguf_src = gguf_candidates[0]
 print(f"GGUF encontrado: {gguf_src}")
 
-drive_gguf = "/content/drive/MyDrive/cardano-dev-9.0-v22-q4_k_m.gguf"
-drive_lora = "/content/drive/MyDrive/cardano-dev-9.0-v22-lora"
+drive_gguf = "/content/drive/MyDrive/cardano-dev-9.0-v23-q4_k_m.gguf"
+drive_lora = "/content/drive/MyDrive/cardano-dev-9.0-v23-lora"
 
 shutil.copy(gguf_src, drive_gguf)
 shutil.copytree(f"/content/{LORA_DIR}", drive_lora, dirs_exist_ok=True)

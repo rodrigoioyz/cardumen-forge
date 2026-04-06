@@ -40,10 +40,10 @@ model-index:
 
 **The first fine-tuned LLM for Aiken v3 smart contract development on Cardano.**
 
-Runs locally on 6 GB VRAM · Bilingual EN/ES · 4,655 compile-verified training examples · Aiken stdlib v3.0.0
+Runs locally on 6 GB VRAM · Bilingual EN/ES · 4,708 compile-verified training examples · Aiken stdlib v3.0.0
 
 [![Model](https://img.shields.io/badge/model-Qwen3.5--4B-blue)](https://huggingface.co/unsloth/Qwen3.5-4B)
-[![Dataset](https://img.shields.io/badge/dataset-4%2C655%20examples-green)](https://huggingface.co/CardumenCorps/cardumen-forge-aiken)
+[![Dataset](https://img.shields.io/badge/dataset-4%2C708%20examples-green)](https://huggingface.co/CardumenCorps/cardumen-forge-aiken)
 [![Stdlib](https://img.shields.io/badge/aiken--stdlib-v3.0.0-orange)](https://aiken-lang.org)
 [![GGUF](https://img.shields.io/badge/GGUF-Q4__K__M%20%C2%B72.5GB-purple)](https://huggingface.co/CardumenCorps/cardumen-forge-aiken/tree/main)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
@@ -227,7 +227,7 @@ This separation matters: a model can score 100% heuristic while still failing to
 |---|---|
 | Base model | `unsloth/Qwen3.5-4B` |
 | Method | QLoRA · r=32, alpha=64 · `LOAD_IN_4BIT=True` · via [Unsloth](https://github.com/unslothai/unsloth) |
-| Dataset | 4,655 examples · dataset_v23 · stdlib v3.0.0 |
+| Dataset | 4,708 examples · dataset_v23 · stdlib v3.0.0 |
 | Compile verification | `aiken check` in isolated sandbox on all correction, fuzz, and test examples |
 | Epochs | 7 max · EarlyStopping patience=3 · eval every 50 steps |
 | Eval steps | Synced with save steps |
@@ -239,7 +239,7 @@ This separation matters: a model can score 100% heuristic while still failing to
 
 ## Dataset
 
-**4,655 examples · 15+ sources · 84% VERIFIED_V3_ALIGNED · 11% VERIFIED_FUZZ_PASS · 2% CORRECTION**
+**4,708 examples · 15+ sources · 82% VERIFIED_V3_ALIGNED · 12% VERIFIED_FUZZ_PASS · 2% CORRECTION**
 
 | Source | n | Description |
 |---|---|---|
@@ -256,6 +256,9 @@ This separation matters: a model can score 100% heuristic while still failing to
 | `hydra_docs` | 60 | Hydra Head L2 — lifecycle, snapshots, fanout |
 | `oracle_examples` | 47 | Oracle price feeds — reference input + InlineDatum + staleness |
 | `cip068_examples` | 32 | CIP-68 NFT label validation (label 100 / 222 / 333) |
+| `generate/dict_examples` | 20 | `aiken/collection/dict` — get, filter, foldl, union, pairs · compile-verified |
+| `generate/string_examples` | 13 | `aiken/primitive/string` — concat, from_int, join, to_bytearray · compile-verified |
+| `generate/math_examples` | 20 | `aiken/math` + `aiken/math/rational` — all functions · compile-verified |
 | `others` | ~344 | v3-compat fixes, reference inputs, address patterns, misc |
 
 ### Pattern library
@@ -456,7 +459,7 @@ REMOVED in stdlib v3 — NEVER generate:
 | cardano-dev v6 | 3,319 | 14/15 · 93% | 10/15 · 67% | First compile benchmark |
 | cardano-dev v7 | 3,401 | 14/15 · 93% | 9/15 · 60% | Governance + oracle added |
 | cardano-dev v8 | 3,682 | **15/15 · 100%** | **10/15 · 67%** | First to hit 100% heuristic |
-| **cardano-dev v9** | **4,655** | **pending** | **pending** | dataset_v23 · fuzz · expand_patterns |
+| **cardano-dev v9** | **4,708** | **pending** | **pending** | dataset_v23 · fuzz · expand_patterns · stdlib_gap |
 
 Dataset quality has been the dominant driver across all versions — not model size or step count. The jump from v7 to v8 (93% → 100% heuristic) came entirely from targeted correction examples, not architectural changes.
 
@@ -469,4 +472,4 @@ Full training pipeline, dataset scripts, evaluation suite, and changelog:
 
 ---
 
-*cardano-dev v9 · dataset v23 · 4,655 examples · Aiken stdlib v3.0.0 · based on Qwen3.5-4B · QLoRA Q4_K_M*
+*cardano-dev v9 · dataset v23 · 4,708 examples · Aiken stdlib v3.0.0 · based on Qwen3.5-4B · QLoRA Q4_K_M*

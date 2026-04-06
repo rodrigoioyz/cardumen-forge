@@ -17,7 +17,7 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 > | | |
 > |---|---|
 > | **Active model** | cardano-dev v9 (training) · v8 released |
-> | **Active dataset** | dataset_v23.jsonl — **4,655 examples** · stdlib v3 · 97.7% compile-verified |
+> | **Active dataset** | dataset_v23.jsonl — **4,708 examples** · stdlib v3 · 99.7% compile-verified |
 > | **Pattern library** | 150 fuzz-verified `.ak` files in `data/patterns/` (01–25, variants a–f) · **+300 DeFi variants via expand_patterns.py** |
 > | **Benchmark** | **benchmark_v2.json — 257 prompts · 257/257 pass** · `aiken check` via PTY sandbox (stdlib v3.0.0) |
 > | **v8 heuristic** | **15/15 (100%)** — first model to achieve perfect heuristic score |
@@ -27,7 +27,7 @@ A bilingual (EN/ES) fine-tuning dataset and training pipeline to specialize a sm
 >
 > v8 is the first model trained on the fully v3-migrated and compile-verified dataset. It achieved 15/15 (100%) heuristic and 10/15 (67%) compile — both new records. Remaining compile failures: `pub type` leak, `MintedValue` removed constructor, `GovernanceCommittee` wrong name, missing `use aiken/interval`.
 >
-> **Since v8:** Dataset expanded from 3,739 → 4,655 examples (+916). DeFi coverage (families 16–25) grew from ~60 → 410 examples. `PLAUSIBLE_NEEDS_CHECK` queue cleared to 0. `benchmark_v2.json` created with 257 compile-verified reference solutions (257/257 pass). v9 training on NVIDIA RTX PRO 6000 Blackwell (102 GB VRAM) — batch 32, grad accum 2.
+> **Since v8:** Dataset expanded from 3,739 → 4,708 examples (+969). DeFi coverage (families 16–25) grew from ~60 → 410 examples. `PLAUSIBLE_NEEDS_CHECK` queue cleared to 0. `benchmark_v2.json` created with 257 compile-verified reference solutions (257/257 pass). Stdlib gap fill: +53 compile-verified examples for `aiken/collection/dict`, `aiken/primitive/string`, `aiken/math` + `aiken/math/rational`. v9 training on NVIDIA RTX PRO 6000 Blackwell (102 GB VRAM) — batch 32, grad accum 2.
 
 ---
 
@@ -308,12 +308,13 @@ Then apply the cleaning pipeline (v15→v22) — see [Cleaning pipeline](#cleani
 
 | Metric | Value |
 |--------|-------|
-| Total examples | **4,610** |
+| Total examples | **4,708** |
 | Languages | EN ~65% / ES ~33% / untagged ~2% |
-| Sources | 15 + misc combined sources + fuzz patterns + DeFi expansions |
+| Sources | 15 + misc combined sources + fuzz patterns + DeFi expansions + stdlib gap fill |
 | `fn` prefix errors | **0** (was 21.5% in v14) |
-| VERIFIED_V3_ALIGNED | **~94%** (was 53% in v14) |
-| PLAUSIBLE_NEEDS_CHECK | ~1% (was 45% in v14) |
+| VERIFIED_V3_ALIGNED | **82.3%** (was 53% in v14) |
+| VERIFIED_FUZZ_PASS | **12.4%** |
+| PLAUSIBLE_NEEDS_CHECK | **0** (was 45% in v14) |
 | Governance handler coverage | vote(64), publish(69), propose(15) — v8 correction patterns added in correction_set_v3 |
 | `else(_)` fallback coverage | 6.4% (was 4.7% in v14) |
 | Banned stdlib v3 patterns | **0** (migrated from v21) |
@@ -510,7 +511,7 @@ dataset_v22.jsonl  3,748 examples
    dedup + compile verification + import fixes → v23
         │
         ▼
-dataset_v23.jsonl  4,610 examples  ← ACTIVE TRAINING SET
+dataset_v23.jsonl  4,708 examples  ← ACTIVE TRAINING SET
         │
         ▼
 [data/patterns/ — 150 fuzz-verified .ak files]
@@ -616,6 +617,7 @@ Each fix is a standalone script with `--dry-run` support. All operate on outputs
 | **v23** | **3,739** | **Dedup pass + compile verification + import fixes (`fix_import_keyword.py`). 9 broken examples removed. Active dataset.** |
 | **v23 + patterns** | **4,219→4,354** | **`fix_plausible.py`: 29 PLAUSIBLE resolved (9 purged, 7 repaired, 13 SKIP_SANDBOX). `patterns_to_dataset.py`: 150 `.ak` files compiled with `--max-success 200` → +135 net new examples.** |
 | **v23 + expand** | **4,610** | **`expand_patterns.py` (new): 5 variants × 60 DeFi files (families 16–25) → +300 examples. DeFi coverage: ~60 → 410. PLAUSIBLE_NEEDS_CHECK: 0.** |
+| **v23 + stdlib_gap** | **4,708** | **Stdlib gap fill: `generate_dict_examples.py` (+20), `generate_string_examples.py` (+13), `generate_math_examples.py` (+20). All 53 compile-verified via `aiken check`. Covers `aiken/collection/dict`, `aiken/primitive/string`, `aiken/math`, `aiken/math/rational`.** |
 
 ### What changed: v22 → v23 → v24
 
@@ -1700,7 +1702,7 @@ cardumen-forge/
 │   │   └── hydra_plutus.json               # Hydra + Plutus integration reference
 │   │
 │   └── processed/
-│       ├── dataset_v23.jsonl               # 4,610 examples — ACTIVE TRAINING SET
+│       ├── dataset_v23.jsonl               # 4,708 examples — ACTIVE TRAINING SET
 │       ├── dataset_v22.jsonl               # 3,748 examples — previous version
 │       ├── dataset_v14_eval.jsonl          # 374 examples — HOLDOUT (do not train on)
 │       ├── components/                     # intermediate outputs per source
@@ -1715,7 +1717,10 @@ cardumen-forge/
 │       │   ├── with_tests_examples.jsonl
 │       │   ├── validators_v3.jsonl
 │       │   ├── validators_fixed.jsonl
-│       │   └── patterns_verified.jsonl     # output of patterns_to_dataset.py (v24 input)
+│       │   ├── patterns_verified.jsonl     # output of patterns_to_dataset.py (v24 input)
+│       │   ├── dict_examples.jsonl         # 20 — aiken/collection/dict (compile-verified)
+│       │   ├── string_examples.jsonl       # 13 — aiken/primitive/string (compile-verified)
+│       │   └── math_examples.jsonl         # 20 — aiken/math + aiken/math/rational (compile-verified)
 │       └── archive/                        # superseded versions (v2–v22)
 │           └── backups/                    # pre-operation snapshots
 │
@@ -1766,4 +1771,4 @@ The raw source content in `data/raw/` is scraped from:
 
 ---
 
-*cardano-dev v9 (training) · dataset v23 · **4,655 examples** · v8: 15/15 heuristic · 10/15 compile · stdlib v3 · 150 fuzz-verified patterns · 300 DeFi variants · benchmark_v2 257/257 pass*
+*cardano-dev v9 (training) · dataset v23 · **4,708 examples** · v8: 15/15 heuristic · 10/15 compile · stdlib v3 · 150 fuzz-verified patterns · 300 DeFi variants · benchmark_v2 257/257 pass*

@@ -1,0 +1,15 @@
+{
+  "run_at": "20260406T020625Z",
+  "failures": [
+    {
+      "prompt": "Write an Aiken v3 spend validator `withdrawal_check` with WithdrawDatum (required_script_hash: ByteArray). Build a ScriptCredential from it using cardano/address.{Credential, ScriptCredential} and use pairs.has_key on self.withdrawals to verify the credential withdrew.",
+      "error": "    Compiling cardumen/sandbox 0.0.0 (.)\r\n    Compiling aiken-lang/stdlib v3.0.0 (./build/packages/aiken-lang-stdlib)\r\n    Compiling anastasia-labs/aiken-design-patterns v1.5.0 (./build/packages/anastasia-labs-aiken-design-patterns)\r\n    Compiling aiken-lang/fuzz v2.2.0 (./build/packages/aiken-lang-fuzz)\r\n        Error aiken::check::unknown::module_field\r\n\r\n  \u00d7 While trying to make sense of your code...\r\n  \u2570\u2500\u25b6 I found an unknown import 'ScriptCredential' from module 'cardano/\r\n      address'.\r\n ",
+      "code": "use aiken/collection/pairs\nuse cardano/address.{Credential, ScriptCredential}\nuse cardano/transaction.{OutputReference, Transaction}\n\npub type WithdrawDatum {\n  required_script_hash: ByteArray,\n}\n\nvalidator withdrawal_check {\n  spend(\n    datum: Option<WithdrawDatum>,\n    _redeemer: Data,\n    _ref: OutputReference,\n    self: Transaction,\n  ) -> Bool {\n    when datum is {\n      None -> False\n      Some(d) -> {\n        let cred: Credential = ScriptCredential(d.required_script_hash)\n        pairs.has_key(self.withdrawals, cred)\n      }\n    }\n  }\n}"
+    },
+    {
+      "prompt": "Write an Aiken v3 spend validator `min_withdrawal_validator` with a WithdrawDatum (script_hash: ByteArray, min_amount: Int). Build a ScriptCredential, use pairs.get_first on self.withdrawals to get the withdrawn amount, verify >= min_amount. Import Credential and ScriptCredential from cardano/address.",
+      "error": "    Compiling cardumen/sandbox 0.0.0 (.)\r\n    Compiling aiken-lang/stdlib v3.0.0 (./build/packages/aiken-lang-stdlib)\r\n    Compiling anastasia-labs/aiken-design-patterns v1.5.0 (./build/packages/anastasia-labs-aiken-design-patterns)\r\n    Compiling aiken-lang/fuzz v2.2.0 (./build/packages/aiken-lang-fuzz)\r\n        Error aiken::check::unknown::module_field\r\n\r\n  \u00d7 While trying to make sense of your code...\r\n  \u2570\u2500\u25b6 I found an unknown import 'ScriptCredential' from module 'cardano/\r\n      address'.\r\n ",
+      "code": "use aiken/collection/pairs\nuse cardano/address.{Credential, ScriptCredential}\nuse cardano/transaction.{Transaction, OutputReference}\n\npub type WithdrawDatum {\n  script_hash: ByteArray,\n  min_amount: Int,\n}\n\nvalidator min_withdrawal_validator {\n  spend(\n    datum: Option<WithdrawDatum>,\n    _redeemer: Data,\n    _ref: OutputReference,\n    self: Transaction,\n  ) -> Bool {\n    when datum is {\n      None -> False\n      Some(d) -> {\n        let cred: Credential = ScriptCredential(d.script_hash)\n        when pairs.get_first(self.withdrawals, cred) is {\n          None -> False\n          Some(amount) -> amount >= d.min_amount\n        }\n      }\n    }\n  }\n}"
+    }
+  ]
+}

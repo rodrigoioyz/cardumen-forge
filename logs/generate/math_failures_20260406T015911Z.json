@@ -1,0 +1,10 @@
+{
+  "run_at": "20260406T015911Z",
+  "failures": [
+    {
+      "prompt": "Write an Aiken v3 spend validator `ratio_above_half` with RatioDatum (num: Int, den: Int). Use rational.new and rational.compare_with with fn(a, b) { a * 2 > b } to verify the ratio is strictly greater than 1/2.",
+      "error": "    Compiling cardumen/sandbox 0.0.0 (.)\r\n    Compiling aiken-lang/stdlib v3.0.0 (./build/packages/aiken-lang-stdlib)\r\n    Compiling anastasia-labs/aiken-design-patterns v1.5.0 (./build/packages/anastasia-labs-aiken-design-patterns)\r\n    Compiling aiken-lang/fuzz v2.2.0 (./build/packages/aiken-lang-fuzz)\r\n        Error aiken::check::unknown::module\r\n\r\n  \u00d7 While trying to make sense of your code...\r\n  \u2570\u2500\u25b6 I stumbled upon a reference to an unknown module: 'option'\r\n      \r\n    \u256d\u2500[./validators/outp",
+      "code": "use aiken/math/rational\nuse cardano/transaction.{OutputReference, Transaction}\n\npub type RatioDatum {\n  num: Int,\n  den: Int,\n}\n\nvalidator ratio_above_half {\n  spend(\n    datum: Option<RatioDatum>,\n    _redeemer: Data,\n    _ref: OutputReference,\n    _self: Transaction,\n  ) -> Bool {\n    when datum is {\n      None -> False\n      Some(d) ->\n        when rational.new(d.num, d.den) is {\n          None -> False\n          Some(r) ->\n            rational.compare_with(r, fn(a, b) { a * 2 > b }, rational.new(1, 2) |> option.or_else(rational.zero))\n        }\n    }\n  }\n\n  else(_) {\n    False\n  }\n}"
+    }
+  ]
+}
