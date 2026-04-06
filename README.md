@@ -348,9 +348,12 @@ Full version history in [Dataset version history](#dataset-version-history).
 | *(misc combined)* | 231 | `aiken_docs.json + aiken_stdlib.json` (185), `aiken_stdlib.json` (22), `aiken_docs.json` (22), `aiken_docs.json + aiken_design_patterns.json` (2) | VERIFIED |
 | `fuzz_patterns_v3` | 150 | 150 `.ak` pattern files (25 families × 6 variants), verified with `aiken check --max-success 200` | VERIFIED_FUZZ_PASS |
 | `expand_patterns_v1` | 300 | 5 instruction variants per DeFi pattern file (families 16–25): implement, complete_from_stub, add_fuzz_tests, impl_from_description, complete_from_imports | VERIFIED_FUZZ_PASS |
-| **Total** | **4,610** | | |
+| `generate/dict_examples` | 20 | `aiken/collection/dict` — get, filter, foldl, union, pairs, size, keys, values. **100% compile-verified.** | VERIFIED |
+| `generate/string_examples` | 13 | `aiken/primitive/string` — concat, from_int, join, to_bytearray, from_bytearray. **100% compile-verified.** | VERIFIED |
+| `generate/math_examples` | 20 | `aiken/math` + `aiken/math/rational` — all functions. **100% compile-verified.** | VERIFIED |
+| **Total** | **4,708** | | |
 
-**Status distribution:** VERIFIED_V3_ALIGNED 84% / VERIFIED_FUZZ_PASS 11% / CORRECTION 2% / VERIFIED_V3 1% / PLAUSIBLE_SKIP_SANDBOX 0.3% · **PLAUSIBLE_NEEDS_CHECK: 0**
+**Status distribution:** VERIFIED_V3_ALIGNED 82% / VERIFIED_FUZZ_PASS 12% / CORRECTION 2% / VERIFIED_V3 2% / VERIFIED 1% / PLAUSIBLE_SKIP_SANDBOX 0.3% · **PLAUSIBLE_NEEDS_CHECK: 0**
 
 > **Note on two Qwen models:** The fine-tuned model (`cardano-dev`) is based on **Qwen3.5-4B** (4B params, base for training). The benchmark comparison baseline is **qwen2.5-coder-7b** (7B params, separate general-purpose coder model). These are different models used for different purposes.
 
